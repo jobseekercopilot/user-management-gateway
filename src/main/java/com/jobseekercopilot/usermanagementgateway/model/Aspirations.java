@@ -9,8 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserAccountResponse {
-    private String id;
-    private String name;
-    private String email;
+public class Aspirations {
+    private java.util.List<String> targetRoles;
+    private TargetWeeklyHours targetWeeklyHours;
 }

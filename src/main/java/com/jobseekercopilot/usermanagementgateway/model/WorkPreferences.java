@@ -7,8 +7,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-public class LoginResponse {
-    private String token;
+@AllArgsConstructor
+public class WorkPreferences {
+    private PostcodeLocation location;
+    private Integer commuteRange;
 }

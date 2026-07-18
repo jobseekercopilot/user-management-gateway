@@ -17,6 +17,10 @@ public class GatewayResponse {
     private String message;
     private User user;
 
+    public boolean isSuccess() {
+        return success;
+    }
+
     public GatewayResponse(int statusCode, boolean success, String message) {
         this.statusCode = statusCode;
         this.success = success;
