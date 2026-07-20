@@ -12,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -118,6 +119,44 @@ class UserManagementServiceTest {
         assertFalse(response.isSuccess());
         assertEquals(400, response.getStatusCode());
         verify(authenticationApi, never()).login(any());
+    }
+
+    @Test
+    void login_ReturnsSafeServiceUnavailable_WhenAuthenticationIsUnavailable() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("john@test.com");
+        request.setPassword("password123");
+        when(authenticationApi.login(any()))
+                .thenThrow(new ResourceAccessException("connection details must not leak"));
+
+        GatewayResponse response = userManagementService.login(request);
+
+        assertFalse(response.isSuccess());
+        assertEquals(503, response.getStatusCode());
+        assertEquals("A required service is temporarily unavailable.", response.getMessage());
+        assertFalse(response.getMessage().contains("connection details"));
+    }
+
+    @Test
+    void register_ReturnsServiceUnavailable_WhenProfileFailsAfterAuthentication() {
+        RegisterRequest request = new RegisterRequest();
+        request.setName("John Doe");
+        request.setEmail("john@test.com");
+        request.setPassword("password123");
+        var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
+                .token("jwt-token");
+        var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
+                .id("user-123").name("John Doe").email("john@test.com");
+        when(authenticationApi.login(any())).thenReturn(loginResponse);
+        when(authenticationApi.getCurrentUser("Bearer jwt-token")).thenReturn(accountResponse);
+        when(userProfilesApi.createOrUpdateMyProfile(eq("user-123"), any()))
+                .thenThrow(new ResourceAccessException("profile unavailable"));
+
+        GatewayResponse response = userManagementService.register(request);
+
+        assertFalse(response.isSuccess());
+        assertEquals(503, response.getStatusCode());
+        assertEquals("A required service is temporarily unavailable.", response.getMessage());
     }
 
     @Test

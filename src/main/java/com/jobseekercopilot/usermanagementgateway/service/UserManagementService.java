@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -93,6 +95,11 @@ public class UserManagementService implements IUserManagementService {
                     (System.nanoTime() - startedAt) / 1_000_000);
 
             return new GatewayResponse(201, true, "Claimant account registered securely with the User Management Gateway.", user);
+        } catch (ResourceAccessException | HttpServerErrorException ex) {
+            log.warn("user-management-gateway registration dependency unavailable durationMs={} error={}",
+                    (System.nanoTime() - startedAt) / 1_000_000,
+                    ex.getClass().getSimpleName());
+            return dependencyUnavailable();
         } catch (HttpClientErrorException ex) {
             log.warn("user-management-gateway registration failed status={} durationMs={}",
                     ex.getStatusCode().value(),
@@ -154,6 +161,11 @@ public class UserManagementService implements IUserManagementService {
                     (System.nanoTime() - startedAt) / 1_000_000);
 
             return new GatewayResponse(200, true, "Credentials verified and secure handshake completed by gateway.", user);
+        } catch (ResourceAccessException | HttpServerErrorException ex) {
+            log.warn("user-management-gateway login dependency unavailable durationMs={} error={}",
+                    (System.nanoTime() - startedAt) / 1_000_000,
+                    ex.getClass().getSimpleName());
+            return dependencyUnavailable();
         } catch (HttpClientErrorException ex) {
             log.warn("user-management-gateway login failed status={} durationMs={}",
                     ex.getStatusCode().value(),
@@ -201,6 +213,11 @@ public class UserManagementService implements IUserManagementService {
                     userId,
                     (System.nanoTime() - startedAt) / 1_000_000);
             return new GatewayResponse(200, true, "User profile retrieved successfully from the gateway.", user);
+        } catch (ResourceAccessException | HttpServerErrorException ex) {
+            log.warn("user-management-gateway profile dependency unavailable durationMs={} error={}",
+                    (System.nanoTime() - startedAt) / 1_000_000,
+                    ex.getClass().getSimpleName());
+            return dependencyUnavailable();
         } catch (HttpClientErrorException ex) {
             log.warn("user-management-gateway profile request failed status={} durationMs={}",
                     ex.getStatusCode().value(),
@@ -240,6 +257,11 @@ public class UserManagementService implements IUserManagementService {
                     userAccountResponse.getId(),
                     (System.nanoTime() - startedAt) / 1_000_000);
             return new GatewayResponse(200, true, "User profile updated successfully in gateway and profile service.", user);
+        } catch (ResourceAccessException | HttpServerErrorException ex) {
+            log.warn("user-management-gateway profile update dependency unavailable durationMs={} error={}",
+                    (System.nanoTime() - startedAt) / 1_000_000,
+                    ex.getClass().getSimpleName());
+            return dependencyUnavailable();
         } catch (HttpClientErrorException ex) {
             log.warn("user-management-gateway profile update failed status={} durationMs={}",
                     ex.getStatusCode().value(),
@@ -267,6 +289,10 @@ public class UserManagementService implements IUserManagementService {
         } catch (Exception ignored) {
         }
         return ex.getMessage();
+    }
+
+    private GatewayResponse dependencyUnavailable() {
+        return new GatewayResponse(503, false, "A required service is temporarily unavailable.");
     }
 
     private com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse getUser(
