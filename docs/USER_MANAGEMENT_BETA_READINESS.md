@@ -84,8 +84,8 @@ Generated binary JARs are deliberately not committed.
 | Repository | Build/test baseline | Secret baseline | Status |
 |---|---|---|---|
 | Client | 28 tests and current-tree production build pass; lint fails (76 errors); clean build blocked; npm audit reports 4 High and 3 Low chains | No confirmed client credential; local caches/generated output excluded | Blocked |
-| User-management gateway | UMG-01 branch: clean generation plus 17 tests pass without local client JARs; merge and CI review pending | No Gitleaks finding in legacy history | In remediation |
-| Authentication service | All 16 tests pass in approved host networking | Public root `.env` credential finding and hard-coded signing config require rotation/sanitisation | Blocked |
+| User-management gateway | UMG-01 is merged; UMG-03 adds bounded timeouts, safe GET-only retry, dependency circuits/bulkheads and readiness coverage | No Gitleaks finding in legacy history | In remediation |
+| Authentication service | AUTH-01 is merged; JWT signing configuration is local-only, required and tested with the compromised value removed | No active signing secret is tracked | In remediation |
 | User-profile service | 22 tests pass | No legacy-history Gitleaks finding | Blocked |
 | Location gateway | 4 tests pass only with local untracked client JAR | No legacy-history Gitleaks finding | Blocked |
 | Postcode.io gateway | 3 tests pass only with local untracked client JAR | No legacy-history Gitleaks finding | Blocked |
@@ -125,7 +125,7 @@ High/P1 themes:
 
 - no refresh/revocation/logout design, weak password validation and no brute
   force/account-enumeration controls;
-- partial registration and no bounded downstream resilience;
+- partial registration remains; downstream calls now have bounded resilience;
 - development databases/consoles and automatic schema update;
 - missing location search, unstable error mapping and provider resilience;
 - bearer token/profile PII in browser local storage;

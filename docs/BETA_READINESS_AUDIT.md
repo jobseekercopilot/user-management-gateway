@@ -2,9 +2,9 @@
 
 Audit date: 18 July 2026
 
-Status: **Not beta-ready.** The facade has working mocked tests and derives the
-profile owner from a bearer token, but its build and distributed transaction
-behaviour block a controlled beta.
+Status: **Not beta-ready.** The facade has a reproducible build, bounded
+downstream calls and working mocked tests, but its distributed transaction and
+other open beta-readiness findings still block a controlled beta.
 
 ## Verified role and baseline
 
@@ -43,3 +43,22 @@ beta-ready** while the other findings below are open.
 - `mvn -B clean verify` passes 17 tests from a clean checkout.
 - The Docker build no longer copies a local `libs` directory. Container test,
   privilege, image pinning and health work remain scoped to UMG-09.
+
+## UMG-03 remediation evidence
+
+- Every generated authentication/profile client call has configurable,
+  positive connect and read timeouts.
+- Only idempotent `GET` requests use the bounded retry budget; unsafe writes
+  are attempted once.
+- Authentication and profile calls have independent circuit breakers and
+  semaphore bulkheads. Open circuits reject calls without contacting the
+  dependency.
+- `/actuator/health/readiness` reports observed dependency circuit state
+  without generating health-check traffic.
+- Tests cover slow/unavailable responses, retry safety, open-circuit rejection,
+  bulkhead saturation, partial registration failure, timeout wiring, invalid
+  configuration and safe 503 responses.
+- Downstream exception details, credentials, bearer tokens and response bodies
+  are not logged. The Spring Web logger is pinned above debug to
+  prevent generated authentication DTOs from rendering credentials. UMG-08
+  still owns metrics, dashboards, alerts and end-to-end trace propagation.

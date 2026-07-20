@@ -12,16 +12,19 @@ import org.springframework.util.StringUtils;
 public class CorrelationIdHttpClientConfig {
 
     @Bean
-    RestTemplateCustomizer correlationIdRestTemplateCustomizer() {
-        return restTemplate -> restTemplate.getInterceptors().add(correlationIdInterceptor());
+    RestTemplateCustomizer correlationIdRestTemplateCustomizer(
+            ClientHttpRequestInterceptor correlationIdInterceptor) {
+        return restTemplate -> restTemplate.getInterceptors().add(correlationIdInterceptor);
     }
 
     @Bean
-    RestClientCustomizer correlationIdRestClientCustomizer() {
-        return restClientBuilder -> restClientBuilder.requestInterceptor(correlationIdInterceptor());
+    RestClientCustomizer correlationIdRestClientCustomizer(
+            ClientHttpRequestInterceptor correlationIdInterceptor) {
+        return restClientBuilder -> restClientBuilder.requestInterceptor(correlationIdInterceptor);
     }
 
-    private ClientHttpRequestInterceptor correlationIdInterceptor() {
+    @Bean
+    ClientHttpRequestInterceptor correlationIdInterceptor() {
         return (request, body, execution) -> {
             String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
             if (StringUtils.hasText(correlationId)) {

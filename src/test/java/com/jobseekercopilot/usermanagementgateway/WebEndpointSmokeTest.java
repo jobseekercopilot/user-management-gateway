@@ -25,6 +25,14 @@ class WebEndpointSmokeTest {
     }
 
     @Test
+    void actuatorReadinessIncludesAvailableDownstreams() throws Exception {
+        mockMvc.perform(get("/actuator/health/readiness"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components.downstreamDependencies.status").value("UP"));
+    }
+
+    @Test
     void openApiDocsAreMapped() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
