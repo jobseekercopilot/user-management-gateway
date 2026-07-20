@@ -84,7 +84,7 @@ Generated binary JARs are deliberately not committed.
 | Repository | Build/test baseline | Secret baseline | Status |
 |---|---|---|---|
 | Client | 28 tests and current-tree production build pass; lint fails (76 errors); clean build blocked; npm audit reports 4 High and 3 Low chains | No confirmed client credential; local caches/generated output excluded | Blocked |
-| User-management gateway | UMG-01 is merged; UMG-03 adds bounded timeouts, safe GET-only retry, dependency circuits/bulkheads and readiness coverage | No Gitleaks finding in legacy history | In remediation |
+| User-management gateway | UMG-01/03 are merged; UMG-09 adds a test-enforcing, digest-pinned, non-root, health-checked image and blocking image scan | No Gitleaks finding in legacy history | In remediation |
 | Authentication service | AUTH-01 is merged; JWT signing configuration is local-only, required and tested with the compromised value removed | No active signing secret is tracked | In remediation |
 | User-profile service | 22 tests pass | No legacy-history Gitleaks finding | Blocked |
 | Location gateway | 4 tests pass only with local untracked client JAR | No legacy-history Gitleaks finding | Blocked |
