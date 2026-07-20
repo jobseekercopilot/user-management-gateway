@@ -11,3 +11,8 @@ arrange rotation with the owner.
 
 The current code is a beta-readiness baseline, not a security certification.
 Known risks and beta blockers are tracked in `docs/BETA_READINESS_AUDIT.md`.
+
+Dependency vulnerability reports are generated for every push and pull request.
+Critical and High findings block the build unless the repository owner approves
+a narrow, issue-linked exception with an expiry of no more than 30 days. See
+`docs/DEPENDENCY_SECURITY.md`; a scanner failure or missing report fails closed.
