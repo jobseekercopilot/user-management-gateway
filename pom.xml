@@ -21,6 +21,7 @@
     <properties>
         <java.version>17</java.version>
         <lombok.version>1.18.32</lombok.version>
+        <openapi-generator.version>7.5.0</openapi-generator.version>
     </properties>
 
     <dependencies>
@@ -32,22 +33,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.jobseekercopilot.generated</groupId>
-            <artifactId>authentication-service-client</artifactId>
-            <version>1.0.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/authentication-service-client-1.0.0.jar</systemPath>
-        </dependency>
-
-        <dependency>
-            <groupId>com.jobseekercopilot.generated</groupId>
-            <artifactId>user-profile-service-client</artifactId>
-            <version>1.0.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/user-profile-service-client-1.0.0.jar</systemPath>
         </dependency>
 
         <dependency>
@@ -79,6 +64,64 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>${openapi-generator.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-authentication-client</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/openapi/authentication-service.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/openapi/authentication-service</output>
+                            <generatorName>java</generatorName>
+                            <library>resttemplate</library>
+                            <apiPackage>com.jobseekercopilot.generated.authenticationservice.api</apiPackage>
+                            <modelPackage>com.jobseekercopilot.generated.authenticationservice.model</modelPackage>
+                            <invokerPackage>com.jobseekercopilot.generated.authenticationservice.client</invokerPackage>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                            <configOptions>
+                                <dateLibrary>java8</dateLibrary>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <openApiNullable>true</openApiNullable>
+                                <useJakartaEe>true</useJakartaEe>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-user-profile-client</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/openapi/user-profile-service.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/openapi/user-profile-service</output>
+                            <generatorName>java</generatorName>
+                            <library>resttemplate</library>
+                            <apiPackage>com.jobseekercopilot.generated.userprofileservice.api</apiPackage>
+                            <modelPackage>com.jobseekercopilot.generated.userprofileservice.model</modelPackage>
+                            <invokerPackage>com.jobseekercopilot.generated.userprofileservice.client</invokerPackage>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                            <configOptions>
+                                <dateLibrary>java8</dateLibrary>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <openApiNullable>true</openApiNullable>
+                                <useJakartaEe>true</useJakartaEe>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
@@ -95,9 +138,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <includeSystemScope>true</includeSystemScope>
-                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -10,8 +10,12 @@ behaviour block a controlled beta.
 
 At runtime this service calls authentication-service for register, login and
 `/me`, then calls user-profile-service with the authenticated user ID. It does
-not call location-gateway. Current-tree `mvn -B verify` passed 17 tests only
-because two untracked binary clients existed under `libs/`.
+not call location-gateway. The original audit found that `mvn -B verify` passed
+17 tests only because two untracked binary clients existed under `libs/`.
+UMG-01 now generates those clients from versioned consumer contracts during
+`generate-sources`; a clean `mvn -B clean verify` passes the same 17 tests
+without sibling repositories or local binaries. The service remains **not
+beta-ready** while the other findings below are open.
 
 ## Findings
 
@@ -25,6 +29,17 @@ because two untracked binary clients existed under `libs/`.
 | [UMG-06](https://github.com/jobseekercopilot/user-management-gateway/issues/6) | Make OpenAPI express real authentication and ownership | Authorization is an optional header parameter and ignored `email` query parameters remain; DTOs duplicate downstream models and unknown fields are discarded. | **Medium / P2 API:** generated consumers encode misleading contracts and schema drift is hidden. | Define bearer security schemes and stable error schemas, remove dead parameters, validate compatibility and add contract tests. | UMG-01. | No | M |
 | [UMG-07](https://github.com/jobseekercopilot/user-management-gateway/issues/7) | Add real integration and negative security tests | Existing service tests mock generated APIs; there is no multi-service registration/profile test, cross-user test, timeout test or browser path. | **High / P1 testing:** orchestration and ownership guarantees are unproven. | Add container/fixture integration plus contract tests covering success, duplicates, invalid/expired token, cross-user access and partial failures. | AUTH/PROFILE test fixtures. | Yes | L |
 | [UMG-08](https://github.com/jobseekercopilot/user-management-gateway/issues/8) | Add service-level telemetry and readiness | Correlation IDs and basic health exist, but no dependency readiness, auth outcome metrics, latency histograms, alerts or trace propagation proof exists. | **Medium / P1 observability:** beta failures cannot be diagnosed or alerted reliably. | Add redacted metrics and dependency health, document dashboards/alerts and test correlation propagation end-to-end. | Monitoring stack decision. | Yes | M |
-| [UMG-09](https://github.com/jobseekercopilot/user-management-gateway/issues/9) | Harden the container and stop skipping tests | Docker build copies `libs`, runs `mvn ... -DskipTests`, uses mutable/root images and has no health check. | **Medium / P1 devops:** the image bakes in the broken dependency model and bypasses verification. | Remove binary clients, run verify in CI/build, pin images, use non-root runtime, health check and image scan. | UMG-01. | Yes | M |
+| [UMG-09](https://github.com/jobseekercopilot/user-management-gateway/issues/9) | Harden the container and stop skipping tests | Docker runs `mvn ... -DskipTests`, uses mutable/root images and has no health check; before UMG-01 it also copied `libs`. | **Medium / P1 devops:** the image still bypasses verification and lacks a hardened runtime baseline. | Run verify in CI/build, pin images, use non-root runtime, health check and image scan. | UMG-01. | Yes | M |
 | [UMG-10](https://github.com/jobseekercopilot/user-management-gateway/issues/10) | Correct operational and API documentation | README examples use obsolete profile fields/response keys and overstate WireMock/comprehensive coverage. | **Medium / P1 documentation:** operators and client developers receive inaccurate instructions. | Document actual endpoints, contracts, environment, secrets, health/readiness, troubleshooting and branch workflow; validate every command from a clean clone. | UMG-01. | Yes | S |
 | [UMG-11](https://github.com/jobseekercopilot/user-management-gateway/issues/11) | Establish reliable dependency vulnerability scanning | CI emits `mvn dependency:tree` but performs no vulnerability analysis; the initial local OWASP database update requires a dependable cache/feed configuration. | **High / P1 dependency:** known vulnerable libraries can enter the beta path without a reliable blocking signal. | Select a proprietary-compatible Maven scanner, configure authenticated/cached advisory data, publish a machine-readable report, fail on unaccepted Critical/High findings and document the risk-acceptance process. | Platform CI and advisory-feed decision. | Yes | M |
+
+## UMG-01 remediation evidence
+
+- `pom.xml` has no `system` scope, `systemPath` or `includeSystemScope` setting.
+- Authentication and profile consumer contracts are versioned under
+  `src/main/openapi` with their reviewed source revisions.
+- OpenAPI Generator 7.5.0 is pinned and emits both RestTemplate clients beneath
+  `target/generated-sources`; generated sources and JARs remain ignored.
+- `mvn -B clean verify` passes 17 tests from a clean checkout.
+- The Docker build no longer copies a local `libs` directory. Container test,
+  privilege, image pinning and health work remain scoped to UMG-09.

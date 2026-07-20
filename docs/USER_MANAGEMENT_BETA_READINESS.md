@@ -50,13 +50,13 @@ Key corrections to the assumed diagram:
 
 `build-tools` is **not required** by the selected path: none of the five Maven
 services declares it as parent or dependency. No `build-tools` repository will
-be created. Reproducibility is blocked instead by `systemPath` JARs and
-generated TypeScript trees:
+be created. The remaining workstream reproducibility blockers are local
+`systemPath` JARs and generated TypeScript trees:
 
 | Consumer | Missing clean-clone input |
 |---|---|
 | Client | Generated user-management, location and out-of-scope API sources/contracts |
-| User-management gateway | Authentication and user-profile client JARs |
+| User-management gateway | Versioned authentication/profile consumer contracts; clients generate during the UMG-01 build |
 | Location gateway | Postcode gateway client JAR |
 | Postcode.io gateway | System-data-service client JAR |
 
@@ -84,7 +84,7 @@ Generated binary JARs are deliberately not committed.
 | Repository | Build/test baseline | Secret baseline | Status |
 |---|---|---|---|
 | Client | 28 tests and current-tree production build pass; lint fails (76 errors); clean build blocked; npm audit reports 4 High and 3 Low chains | No confirmed client credential; local caches/generated output excluded | Blocked |
-| User-management gateway | 17 tests pass only with local untracked client JARs | No Gitleaks finding in legacy history | Blocked |
+| User-management gateway | UMG-01 branch: clean generation plus 17 tests pass without local client JARs; merge and CI review pending | No Gitleaks finding in legacy history | In remediation |
 | Authentication service | All 16 tests pass in approved host networking | Public root `.env` credential finding and hard-coded signing config require rotation/sanitisation | Blocked |
 | User-profile service | 22 tests pass | No legacy-history Gitleaks finding | Blocked |
 | Location gateway | 4 tests pass only with local untracked client JAR | No legacy-history Gitleaks finding | Blocked |
@@ -114,7 +114,8 @@ owns upgrade, reachability/false-positive review and a reliable CI gate.
 
 Critical/P0:
 
-1. Clean builds depend on generated sources or untracked `systemPath` JARs.
+1. Other clean builds still depend on generated sources or untracked
+   `systemPath` JARs; UMG-01 removes this dependency for user-management-gateway.
 2. Authentication signing/public-history credentials require sanitisation and
    owner-controlled rotation.
 3. User-profile-service trusts a forgeable `X-User-Id` header.

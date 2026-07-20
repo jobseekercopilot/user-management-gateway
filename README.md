@@ -4,8 +4,8 @@ Spring Boot facade for registration, login, current-profile retrieval and
 profile update. It calls authentication-service and user-profile-service; it
 does not own location lookup.
 
-> Beta status: not beta-ready. A fresh clone cannot build while generated
-> clients are referenced through `systemPath`. See
+> Beta status: not beta-ready. UMG-01 makes the gateway build reproducibly,
+> but the remaining beta-readiness findings are still open. See
 > [the audit](docs/BETA_READINESS_AUDIT.md) and
 > [workstream summary](docs/USER_MANAGEMENT_BETA_READINESS.md).
 
@@ -39,15 +39,18 @@ mvn spring-boot:run
 docker build -t user-management-gateway .
 ```
 
-The clean build currently fails until UMG-01 replaces local client JARs. CI
-records that failure; generated binaries must not be committed as a workaround.
+`mvn verify` generates the authentication and profile clients from the reviewed
+contracts under `src/main/openapi`; no sibling checkout or `libs/*.jar` is
+required. Generated sources stay under `target/` and must not be committed.
+See [the contract update procedure](src/main/openapi/README.md) when either
+downstream API changes.
 
 ## Branch workflow and troubleshooting
 
 Use `feature/* → develop`; `main` will be added later as a release branch. For
-compile failures under `com.jobseekercopilot.generated`, follow UMG-01. For
-runtime 5xx responses, use the correlation ID and check authentication/profile
-health; do not log request credentials or tokens.
+generated-client failures, validate the versioned OpenAPI inputs and rerun
+`mvn -B clean verify`. For runtime 5xx responses, use the correlation ID and
+check authentication/profile health; do not log request credentials or tokens.
 
 ## Licence
 
