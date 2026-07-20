@@ -62,3 +62,21 @@ beta-ready** while the other findings below are open.
   are not logged. The Spring Web logger is pinned above debug to
   prevent generated authentication DTOs from rendering credentials. UMG-08
   still owns metrics, dashboards, alerts and end-to-end trace propagation.
+
+## UMG-09 remediation evidence
+
+- Build and runtime base images are pinned by digest; their resolved toolchain
+  is Maven 3.9.16 and Java 17.0.19.
+- The container build runs `mvn -B clean verify` instead of skipping tests and
+  does not copy binary clients or generated output from the host.
+- The minimal runtime installs no additional package, runs as fixed UID/GID
+  `10001:10001`, and declares a readiness health check.
+- `scripts/verify-container.sh` verifies build success, image metadata, a
+  read-only-root runtime, the runtime identity and transition to healthy.
+- CI scans the built image with a full-SHA-pinned Trivy Action and fails for
+  Critical or High operating-system/library vulnerabilities. UMG-11 still owns
+  the broader Maven advisory-feed, report and risk-acceptance workflow.
+- Enabling the gate exposed 4 Critical and 35 High findings in the previous
+  Spring Boot 3.2.0/April runtime baseline. Spring Boot 3.5.16, compatible
+  springdoc 2.8.17, the refreshed runtime digest and exact fixed Alpine
+  packages reduce the blocking image result to zero without suppressions.

@@ -5,8 +5,8 @@ profile update. It calls authentication-service and user-profile-service; it
 does not own location lookup.
 
 > Beta status: not beta-ready. UMG-01 makes the gateway build reproducibly and
-> UMG-03 bounds downstream calls, but the remaining beta-readiness findings are
-> still open. See
+> UMG-03 bounds downstream calls and UMG-09 hardens the runtime image, but the
+> remaining beta-readiness findings are still open. See
 > [the audit](docs/BETA_READINESS_AUDIT.md) and
 > [workstream summary](docs/USER_MANAGEMENT_BETA_READINESS.md).
 
@@ -59,6 +59,7 @@ is enabled because its debug representation includes request DTOs.
 mvn -B verify
 mvn spring-boot:run
 docker build -t user-management-gateway .
+./scripts/verify-container.sh
 ```
 
 `mvn verify` generates the authentication and profile clients from the reviewed
@@ -66,6 +67,29 @@ contracts under `src/main/openapi`; no sibling checkout or `libs/*.jar` is
 required. Generated sources stay under `target/` and must not be committed.
 See [the contract update procedure](src/main/openapi/README.md) when either
 downstream API changes.
+
+## Container security and operation
+
+The multi-stage image pins its Maven 3.9.16/Java 17.0.19 build and runtime bases
+by digest. Fixed Alpine security updates that post-date the runtime digest are
+also installed at exact versions. The build stage runs the complete
+`mvn -B clean verify`; the runtime contains only the application JAR and
+base-runtime tools, runs as fixed UID/GID `10001:10001`, and declares a
+readiness health check that follows `SERVER_PORT`. The verification script also
+starts the image with a read-only root filesystem and confirms the
+configured/runtime user and healthy state.
+
+CI rebuilds and verifies the image, then scans operating-system and Java
+packages with Trivy. Critical or High findings fail the job. The Trivy Action is
+pinned to a full commit SHA; update it and both base-image digests only in a
+reviewed dependency pull request, rerun the clean build/container test and
+record any accepted finding in the relevant dependency-security issue. UMG-09
+does not claim the runtime is generally hardened for production deployment;
+deployment resource limits and platform policy remain environment ownership.
+
+Spring Boot 3.5.16 and springdoc 2.8.17 are deliberately paired as supported,
+compatible runtime dependencies. The upgrade removed the Critical/High Java
+findings exposed when the image gate was first enabled.
 
 ## Branch workflow and troubleshooting
 
