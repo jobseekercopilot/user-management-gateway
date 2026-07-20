@@ -57,6 +57,7 @@ open duration passes.
 | `SERVER_PORT` | `8083` | Gateway listener |
 | `AUTHENTICATION_SERVICE_URL` | `http://localhost:8084` | Base URL; authentication-service owner |
 | `USER_PROFILE_SERVICE_URL` | `http://localhost:8085` | Base URL; user-profile-service owner |
+| `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES` | `65536` | Positive maximum bytes accepted on `POST`, `PUT` and `PATCH` bodies |
 | `DOWNSTREAM_CONNECT_TIMEOUT_MS` | `500` | Positive milliseconds |
 | `DOWNSTREAM_READ_TIMEOUT_MS` | `2000` | Positive milliseconds |
 | `DOWNSTREAM_RETRY_MAX_ATTEMPTS` | `2` | Positive total attempts for idempotent GET calls |
@@ -65,10 +66,10 @@ open duration passes.
 | `DOWNSTREAM_BULKHEAD_MAX_CONCURRENT` | `32` | Positive calls per dependency |
 | `APP_LOG_LEVEL` | `INFO` | Gateway package log level |
 
-Invalid non-positive resilience values fail application startup. Registration,
-login and profile writes are never automatically retried; only idempotent
-profile reads use the configured attempt budget. Authentication and profile
-have independent circuit and concurrency state.
+Invalid non-positive resilience or request-size values fail application
+startup. Registration, login and profile writes are never automatically
+retried; only idempotent profile reads use the configured attempt budget.
+Authentication and profile have independent circuit and concurrency state.
 
 The gateway owns no signing key. `JWT_SIGNING_KEY` belongs in the ignored local
 environment configuration of authentication-service and must not be passed to
@@ -81,6 +82,11 @@ command-line arguments, URLs, source, fixtures and issue comments.
 - `503` with "A required service is temporarily unavailable": check the
   readiness details and the matching downstream process/URL. Calls fail fast
   while that dependency circuit is open.
+- `413` with `PAYLOAD_TOO_LARGE`: reduce the JSON request below
+  `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES`, or deliberately raise the positive
+  limit after reviewing the memory and abuse impact.
+- `400` with `REQUEST_VALIDATION_FAILED`: use the machine-readable field and
+  constraint codes. Rejected values are intentionally not echoed.
 - Connection failure at startup is not expected: downstream connections are
   lazy. Confirm URLs and services before exercising an API request.
 - Generated-client compilation failure: validate the two tracked YAML files,
@@ -102,7 +108,6 @@ handling rules.
 ## Residual ownership
 
 - UMG-02: registration atomicity/idempotency.
-- UMG-04: complete request validation and stable safe errors.
 - UMG-05: public gateway security policy and rate controls.
 - UMG-06: OpenAPI authentication/ownership semantics and legacy query removal.
 - UMG-07/08: broader integration coverage, metrics, tracing and alerting.

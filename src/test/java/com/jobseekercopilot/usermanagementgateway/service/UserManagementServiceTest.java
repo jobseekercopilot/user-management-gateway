@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -34,7 +35,7 @@ class UserManagementServiceTest {
         RegisterRequest request = new RegisterRequest();
         request.setName("John Doe");
         request.setEmail("john@test.com");
-        request.setPassword("password123");
+        request.setPassword("A valid local passphrase 2026!");
         request.setProfile(new UserProfile(
             List.of("Java"),
             List.of(new Qualification()),
@@ -84,7 +85,7 @@ class UserManagementServiceTest {
     void login_ShouldReturnSuccess() {
         LoginRequest request = new LoginRequest();
         request.setEmail("john@test.com");
-        request.setPassword("password123");
+        request.setPassword("A valid local passphrase 2026!");
 
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
                 .token("jwt-token");
@@ -125,7 +126,7 @@ class UserManagementServiceTest {
     void login_ReturnsSafeServiceUnavailable_WhenAuthenticationIsUnavailable() {
         LoginRequest request = new LoginRequest();
         request.setEmail("john@test.com");
-        request.setPassword("password123");
+        request.setPassword("A valid local passphrase 2026!");
         when(authenticationApi.login(any()))
                 .thenThrow(new ResourceAccessException("connection details must not leak"));
 
@@ -138,11 +139,41 @@ class UserManagementServiceTest {
     }
 
     @Test
+    void login_MapsDownstreamAuthenticationFailureWithoutLeakingCause() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("john@test.com");
+        request.setPassword("A valid local passphrase 2026!");
+        when(authenticationApi.login(any()))
+                .thenThrow(new HttpClientErrorException(HttpStatus.UNAUTHORIZED, "downstream secret detail"));
+
+        GatewayResponse response = userManagementService.login(request);
+
+        assertEquals(401, response.getStatusCode());
+        assertEquals("AUTHENTICATION_FAILED", response.getError().code());
+        assertEquals("Invalid email or password.", response.getMessage());
+        assertFalse(response.getMessage().contains("secret"));
+    }
+
+    @Test
+    void login_MapsUnexpectedFailureWithoutLeakingCause() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("john@test.com");
+        request.setPassword("A valid local passphrase 2026!");
+        when(authenticationApi.login(any())).thenThrow(new IllegalStateException("database secret detail"));
+
+        GatewayResponse response = userManagementService.login(request);
+
+        assertEquals(500, response.getStatusCode());
+        assertEquals("INTERNAL_ERROR", response.getError().code());
+        assertEquals("An unexpected error occurred.", response.getMessage());
+    }
+
+    @Test
     void register_ReturnsServiceUnavailable_WhenProfileFailsAfterAuthentication() {
         RegisterRequest request = new RegisterRequest();
         request.setName("John Doe");
         request.setEmail("john@test.com");
-        request.setPassword("password123");
+        request.setPassword("A valid local passphrase 2026!");
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
                 .token("jwt-token");
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()

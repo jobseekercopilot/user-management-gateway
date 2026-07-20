@@ -5,7 +5,8 @@ profile update. It calls authentication-service and user-profile-service; it
 does not own location lookup.
 
 > Beta status: not beta-ready. UMG-01 makes the gateway build reproducibly and
-> UMG-03 bounds downstream calls and UMG-09 hardens the runtime image, but the
+> UMG-03 bounds downstream calls, UMG-04 validates requests and returns safe
+> errors, and UMG-09 hardens the runtime image, but the
 > remaining beta-readiness findings are still open. See
 > [the audit](docs/BETA_READINESS_AUDIT.md) and
 > [workstream summary](docs/USER_MANAGEMENT_BETA_READINESS.md).
@@ -48,6 +49,7 @@ select a user.
 | `SERVER_PORT` | `8083` | HTTP port |
 | `AUTHENTICATION_SERVICE_URL` | `http://localhost:8084` | Authentication API |
 | `USER_PROFILE_SERVICE_URL` | `http://localhost:8085` | Profile API |
+| `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES` | `65536` | Positive maximum request-body size for write routes |
 | `DOWNSTREAM_CONNECT_TIMEOUT_MS` | `500` | Connection deadline for each downstream call |
 | `DOWNSTREAM_READ_TIMEOUT_MS` | `2000` | Response-read deadline for each downstream call |
 | `DOWNSTREAM_RETRY_MAX_ATTEMPTS` | `2` | Maximum attempts for idempotent `GET` calls; `POST` is always attempted once |
@@ -56,7 +58,8 @@ select a user.
 | `DOWNSTREAM_BULKHEAD_MAX_CONCURRENT` | `32` | Maximum concurrent calls to each dependency |
 | `APP_LOG_LEVEL` | `INFO` | Application log level |
 
-All resilience values must be positive or startup fails. This service has no
+All resilience values and the request-body limit must be positive or startup
+fails. This service has no
 signing key or database credential of its own. JWT signing configuration
 belongs to authentication-service. Bearer tokens and downstream secrets must
 be supplied at runtime and must never be committed or placed in command-line
@@ -73,6 +76,11 @@ without exposing internal exception details. Correlation IDs continue across
 all attempts, while request credentials, bearer tokens and response bodies are
 not logged. The Spring Web logger remains at `INFO` even if Spring debug mode
 is enabled because its debug representation includes request DTOs.
+
+JSON write requests are limited to 64 KiB by default and validated before a
+downstream call. Failure responses include a stable, versioned `error` object;
+field violations identify only the field and constraint code and never echo
+the rejected value, password, downstream body or exception cause.
 
 ## Verification
 

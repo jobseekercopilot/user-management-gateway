@@ -4,12 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.validation.constraints.Size;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Aspirations {
-    private java.util.List<String> targetRoles;
+    @Size(max = 50)
+    private java.util.List<@Size(max = 100) String> targetRoles;
     private TargetWeeklyHours targetWeeklyHours;
 }
