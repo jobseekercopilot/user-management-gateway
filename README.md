@@ -78,6 +78,7 @@ is enabled because its debug representation includes request DTOs.
 
 ```bash
 mvn -B clean verify
+./scripts/test-dependency-report-policy.sh
 ./scripts/verify-container.sh
 ```
 
@@ -88,7 +89,9 @@ See [the contract update procedure](src/main/openapi/README.md) when either
 downstream API changes.
 
 The first command runs the unit, web, generated-contract and documentation
-contract tests and exports `target/openapi.json`. The second builds the image,
+contract tests and exports `target/openapi.json`. The second proves the
+dependency-report policy rejects malformed reports, Critical/High findings and
+invalid risk exceptions. The third builds the image,
 starts it with a read-only root filesystem, and verifies its configured user,
 runtime identity, health check and healthy state. It requires a running Docker
 daemon. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch workflow.
@@ -104,11 +107,17 @@ readiness health check that follows `SERVER_PORT`. The verification script also
 starts the image with a read-only root filesystem and confirms the
 configured/runtime user and healthy state.
 
-CI rebuilds and verifies the image, then scans operating-system and Java
-packages with Trivy. Critical or High findings fail the job. The Trivy Action is
-pinned to a full commit SHA; update it and both base-image digests only in a
-reviewed dependency pull request, rerun the clean build/container test and
-record any accepted finding in the relevant dependency-security issue. UMG-09
+CI scans the verified runtime dependency set and rebuilt image with Trivy. The
+dependency scan uploads a complete machine-readable JSON report retained for 30 days;
+Critical or High Java, operating-system or other library findings fail the
+relevant job. Trivy caches its vulnerability and Java databases through the
+Action and refreshes them from Aqua's public OCI database mirrors when needed;
+no advisory credential is required. Scanner and artifact Actions are pinned to
+full commit SHAs. See the [dependency security policy](docs/DEPENDENCY_SECURITY.md)
+for local reproduction and the time-bounded risk-acceptance process.
+
+Update Actions and both base-image digests only in a reviewed dependency pull
+request, then rerun the clean build, policy tests and container test. UMG-09
 does not claim the runtime is generally hardened for production deployment;
 deployment resource limits and platform policy remain environment ownership.
 
