@@ -3,6 +3,8 @@ FROM maven:3.9-eclipse-temurin-17@sha256:e8ef73dbd33b69fe497fd96b3bbbd85aff84ac4
 WORKDIR /app
 
 COPY pom.xml .
+COPY README.md .
+COPY docs ./docs
 COPY src ./src
 
 RUN mvn -B clean verify

@@ -8,4 +8,7 @@ data
 .env.*
 *.log
 *.md
+!README.md
+!docs/API.md
+!docs/OPERATIONS.md
 LICENSE
