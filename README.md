@@ -10,10 +10,38 @@ does not own location lookup.
 > [the audit](docs/BETA_READINESS_AUDIT.md) and
 > [workstream summary](docs/USER_MANAGEMENT_BETA_READINESS.md).
 
-## Requirements and configuration
+## Start here
 
-- Java 17 and Maven 3.9
-- authentication-service and user-profile-service
+Requirements: Java 17, Maven 3.9, and Docker when verifying the container.
+The gateway can start alone, but registration, login and profile requests need
+authentication-service on port `8084` and user-profile-service on port `8085`
+unless their URLs are overridden.
+
+```bash
+mvn -B clean verify
+mvn spring-boot:run
+```
+
+After startup, `curl --fail http://localhost:8083/actuator/health` checks the
+process. See the [operations guide](docs/OPERATIONS.md) for configuration,
+readiness semantics, container checks and troubleshooting.
+
+## API
+
+| Method | Path | Authentication | Purpose |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | None | Create an account and initial profile, then return the user and token |
+| `POST` | `/api/auth/login` | None | Authenticate and return the user, profile and token |
+| `GET` | `/api/auth/profile` | `Authorization: Bearer <token>` | Read the current user's profile |
+| `PUT` | `/api/auth/profile` | `Authorization: Bearer <token>` | Replace the current user's profile |
+
+The complete payload fields, examples and response envelope are in the
+[API reference](docs/API.md). Runtime OpenAPI is available at `/v3/api-docs`
+and Swagger UI at `/swagger-ui/index.html`. The optional legacy `email` query
+parameter on profile routes is ignored; clients must not send it or use it to
+select a user.
+
+## Configuration
 
 | Variable | Local default | Purpose |
 |---|---|---|
@@ -28,18 +56,11 @@ does not own location lookup.
 | `DOWNSTREAM_BULKHEAD_MAX_CONCURRENT` | `32` | Maximum concurrent calls to each dependency |
 | `APP_LOG_LEVEL` | `INFO` | Application log level |
 
-All resilience values must be positive or startup fails. No secret belongs in
-source or a command-line argument.
-
-## API and health
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/profile` with bearer token
-- `PUT /api/auth/profile` with bearer token
-- `/v3/api-docs`, `/swagger-ui/index.html`, `/actuator/health`
-- `/actuator/health/readiness` includes the observed authentication and profile
-  circuit states; it does not probe or create downstream traffic
+All resilience values must be positive or startup fails. This service has no
+signing key or database credential of its own. JWT signing configuration
+belongs to authentication-service. Bearer tokens and downstream secrets must
+be supplied at runtime and must never be committed or placed in command-line
+arguments, URLs or logs.
 
 ## Downstream failure behaviour
 
@@ -53,12 +74,10 @@ all attempts, while request credentials, bearer tokens and response bodies are
 not logged. The Spring Web logger remains at `INFO` even if Spring debug mode
 is enabled because its debug representation includes request DTOs.
 
-## Build, test and run
+## Verification
 
 ```bash
-mvn -B verify
-mvn spring-boot:run
-docker build -t user-management-gateway .
+mvn -B clean verify
 ./scripts/verify-container.sh
 ```
 
@@ -68,7 +87,13 @@ required. Generated sources stay under `target/` and must not be committed.
 See [the contract update procedure](src/main/openapi/README.md) when either
 downstream API changes.
 
-## Container security and operation
+The first command runs the unit, web, generated-contract and documentation
+contract tests and exports `target/openapi.json`. The second builds the image,
+starts it with a read-only root filesystem, and verifies its configured user,
+runtime identity, health check and healthy state. It requires a running Docker
+daemon. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch workflow.
+
+## Container security
 
 The multi-stage image pins its Maven 3.9.16/Java 17.0.19 build and runtime bases
 by digest. Fixed Alpine security updates that post-date the runtime digest are
@@ -90,15 +115,6 @@ deployment resource limits and platform policy remain environment ownership.
 Spring Boot 3.5.16 and springdoc 2.8.17 are deliberately paired as supported,
 compatible runtime dependencies. The upgrade removed the Critical/High Java
 findings exposed when the image gate was first enabled.
-
-## Branch workflow and troubleshooting
-
-Use `feature/* → develop`; `main` will be added later as a release branch. For
-generated-client failures, validate the versioned OpenAPI inputs and rerun
-`mvn -B clean verify`. For runtime 503 responses, use the correlation ID and
-check `/actuator/health/readiness` plus authentication/profile health. An
-`OPEN` dependency remains fail-fast for the configured open duration. Do not
-log request credentials or tokens.
 
 ## Licence
 
