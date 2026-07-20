@@ -1,0 +1,147 @@
+openapi: 3.0.1
+info:
+  title: Jobseeker Copilot - User Profile Service API
+  version: 1.0.0
+  description: Consumer contract used by user-management-gateway.
+x-source-repository: jobseekercopilot/user-profile-service
+x-source-revision: 55f37006dc362b7237b44199cc10cce7a1f504d0
+paths:
+  /api/profiles/me:
+    get:
+      tags: [User Profiles]
+      operationId: getMyProfile
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Current profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '404':
+          description: Profile not found
+    put:
+      tags: [User Profiles]
+      operationId: createOrUpdateMyProfile
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+      responses:
+        '200':
+          description: Saved profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Invalid profile
+components:
+  parameters:
+    UserId:
+      name: X-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+  schemas:
+    Aspirations:
+      type: object
+      properties:
+        targetRoles:
+          type: array
+          items:
+            type: string
+        targetWeeklyHours:
+          type: string
+          enum: [FULL_TIME, PART_TIME_16_30, PART_TIME_UNDER_16, FLEXIBLE]
+    PostcodeLocation:
+      type: object
+      properties:
+        postcode:
+          type: string
+        region:
+          type: string
+        adminDistrict:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+    Qualification:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        qualificationName:
+          type: string
+        issuingBody:
+          type: string
+        status:
+          type: string
+          enum: [IN_PROGRESS, COMPLETED]
+        grade:
+          type: string
+        dateAchieved:
+          type: string
+        expectedCompletion:
+          type: string
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        jobTitle:
+          type: string
+        employer:
+          type: string
+        status:
+          type: string
+          enum: [CURRENT, PREVIOUS_ROLE]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        keyResponsibilities:
+          type: string
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        aspirations:
+          $ref: '#/components/schemas/Aspirations'
+        workPreferences:
+          $ref: '#/components/schemas/WorkPreferences'
+        qualifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Qualification'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+    WorkPreferences:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/PostcodeLocation'
+        commuteRange:
+          type: integer
+          format: int32
