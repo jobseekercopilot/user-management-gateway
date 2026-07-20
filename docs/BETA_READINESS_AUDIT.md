@@ -24,7 +24,7 @@ beta-ready** while the other findings below are open.
 | [UMG-01](https://github.com/jobseekercopilot/user-management-gateway/issues/1) | Replace `systemPath` client JARs | `pom.xml` references authentication and profile clients under `libs/`; the directory is untracked and intentionally excluded. | **Critical / P0 build:** fresh clones and CI cannot compile. | Publish versioned clients from contracts to an approved package repository or generate them deterministically during the build; remove `systemPath`; prove a fresh-clone `mvn -B verify`. | Authentication/profile contracts and package policy. | Yes | L |
 | [UMG-02](https://github.com/jobseekercopilot/user-management-gateway/issues/2) | Make registration failure-safe and retryable | `UserManagementService.register` creates auth account, logs in, loads `/me`, then writes profile with no compensation/idempotency. | **High / P1 reliability/data:** profile failure leaves a valid account while the client receives 500; retry becomes duplicate registration. | Define an idempotency key/state machine or compensation; return stable outcomes; test every partial failure and retry. | Authentication/profile API changes. | Yes | L |
 | [UMG-03](https://github.com/jobseekercopilot/user-management-gateway/issues/3) | Add bounded downstream resilience | Generated clients have no configured connect/read deadlines, retry budget, circuit breaker or bulkhead. | **High / P1 reliability:** a synchronous chain can exhaust gateway resources and amplify outages. | Add per-operation timeouts, safe retry rules, circuit breaking and dependency readiness; test slow, unavailable and partial downstreams. | Generated-client configuration. | Yes | M |
-| [UMG-04](https://github.com/jobseekercopilot/user-management-gateway/issues/4) | Enforce contract validation and safe errors | Controller bodies lack `@Valid`; checks are `contains("@")` and four-character passwords; generic catches return `ex.getMessage()`. | **High / P1 security/API:** malformed input and internal details reach clients with inconsistent schemas. | Add size/content-type limits and Bean Validation; normalise email consistently; map errors to a versioned schema without causes; test malformed JSON and boundaries. | AUTH-02. | Yes | M |
+| [UMG-04](https://github.com/jobseekercopilot/user-management-gateway/issues/4) | Enforce contract validation and safe errors | **Remediated:** Bean Validation covers request/nested DTO boundaries; bodies and media types are bounded; failures use a versioned safe schema. | **High / P1 security/API, mitigated:** malformed input and internal details no longer reach downstreams or clients. | Keep the error schema backward compatible and align constraints when downstream contracts change. | AUTH-02 complete. | No | M |
 | [UMG-05](https://github.com/jobseekercopilot/user-management-gateway/issues/5) | Establish the public gateway security baseline | No security filter chain, rate limiting, explicit CORS policy or security headers exist; auth is manual per profile method. | **High / P1 security:** brute force and future accidental endpoint exposure are unbounded. | Deny by default, explicitly permit register/login/health, authenticate protected routes, define CORS and headers, rate-limit auth paths and add security tests. | Agreed browser/session design. | Yes | L |
 | [UMG-06](https://github.com/jobseekercopilot/user-management-gateway/issues/6) | Make OpenAPI express real authentication and ownership | Authorization is an optional header parameter and ignored `email` query parameters remain; DTOs duplicate downstream models and unknown fields are discarded. | **Medium / P2 API:** generated consumers encode misleading contracts and schema drift is hidden. | Define bearer security schemes and stable error schemas, remove dead parameters, validate compatibility and add contract tests. | UMG-01. | No | M |
 | [UMG-07](https://github.com/jobseekercopilot/user-management-gateway/issues/7) | Add real integration and negative security tests | Existing service tests mock generated APIs; there is no multi-service registration/profile test, cross-user test, timeout test or browser path. | **High / P1 testing:** orchestration and ownership guarantees are unproven. | Add container/fixture integration plus contract tests covering success, duplicates, invalid/expired token, cross-user access and partial failures. | AUTH/PROFILE test fixtures. | Yes | L |
@@ -62,6 +62,23 @@ beta-ready** while the other findings below are open.
   are not logged. The Spring Web logger is pinned above debug to
   prevent generated authentication DTOs from rendering credentials. UMG-08
   still owns metrics, dashboards, alerts and end-to-end trace propagation.
+
+## UMG-04 remediation evidence
+
+- Registration enforces the AUTH-02 15–128 Unicode-code-point password policy,
+  trims identity fields and never changes password input. Login remains
+  compatible with existing credentials while bounding credential size.
+- Bean Validation recursively bounds profile collections, text, commute and
+  geographic coordinates before any downstream call.
+- JSON write bodies default to a 65,536-byte maximum, require
+  `application/json`, and reject malformed input with stable status/code pairs.
+  Invalid non-positive size configuration fails startup.
+- The version 1 error schema exposes only safe messages, field names and
+  constraint codes. Downstream bodies, rejected values, passwords and exception
+  causes are neither returned nor written to application logs.
+- Web and service tests cover Unicode boundaries, whitespace behaviour,
+  malformed JSON, unsupported media, oversized bodies, safe downstream mapping
+  and unexpected exceptions.
 
 ## UMG-09 remediation evidence
 

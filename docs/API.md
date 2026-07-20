@@ -21,8 +21,28 @@ this envelope:
 `user` is omitted on failures. `token` is omitted from profile read/update
 responses. Callers must use the HTTP status, not only the duplicated
 `statusCode` field. Downstream client errors retain their HTTP status; an
-unavailable or 5xx downstream returns `503`. Other unhandled failures currently
-return `500` and are tracked for safe-error remediation in UMG-04.
+unavailable or 5xx downstream returns `503`. Failures also include a stable,
+versioned error object, for example:
+
+```json
+{
+  "statusCode": 400,
+  "success": false,
+  "message": "Request validation failed.",
+  "error": {
+    "schemaVersion": "1",
+    "code": "REQUEST_VALIDATION_FAILED",
+    "message": "Request validation failed.",
+    "violations": [
+      { "field": "password", "code": "UNICODELENGTH" }
+    ]
+  }
+}
+```
+
+Errors never include rejected values, passwords, downstream response bodies or
+exception causes. Malformed JSON, unsupported media types and oversized bodies
+use `MALFORMED_JSON`, `UNSUPPORTED_MEDIA_TYPE` and `PAYLOAD_TOO_LARGE`.
 
 ## Register
 
@@ -57,10 +77,12 @@ creates the profile synchronously.
 ```
 
 `profile` is optional; omitted profiles start with empty skills,
-qualifications and roles. Success is `201`. The current gateway performs only
-basic name/email/password checks; shared validation hardening is tracked in
-UMG-04. Registration is not yet atomic: a later profile failure can leave the
-account created, as tracked in UMG-02.
+qualifications and roles. Success is `201`. Names are trimmed and contain 1–100
+Unicode code points. Emails are trimmed, syntactically valid and at most 254
+code points. New passwords contain 15–128 Unicode code points and are forwarded
+exactly as supplied; whitespace is never trimmed or otherwise changed.
+Registration is not yet atomic: a later profile failure can leave the account
+created, as tracked in UMG-02.
 
 ## Login
 
@@ -75,7 +97,9 @@ account created, as tracked in UMG-02.
 
 Success is `200` and includes the user, profile and token. A missing profile is
 represented with empty skills, qualifications and roles; login does not create
-it.
+it. Login preserves passwords exactly and accepts legacy account passwords up
+to 128 Unicode code points; authentication-service remains responsible for
+credential verification.
 
 ## Read the current profile
 
@@ -134,9 +158,15 @@ tracked in UMG-06.
 ```
 
 `targetWeeklyHours` accepts `FULL_TIME`, `PART_TIME_16_30`,
-`PART_TIME_UNDER_16`, or `FLEXIBLE`. Success is `200`. Current nested status,
-date and distance values are strings/integers without complete boundary
-validation; UMG-04 owns that remediation.
+`PART_TIME_UNDER_16`, or `FLEXIBLE`. Success is `200`. Profile collections and
+text fields have bounded sizes; commute range is 0–500, latitude is -90–90 and
+longitude is -180–180. Domain-specific status and date consistency remains
+owned by the profile service.
+
+All JSON `POST`, `PUT` and `PATCH` bodies are limited to 65,536 bytes by
+default. Operators can set the positive `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES`
+runtime value. A missing/unsupported JSON content type is rejected before any
+downstream call.
 
 ## Machine-readable contracts
 

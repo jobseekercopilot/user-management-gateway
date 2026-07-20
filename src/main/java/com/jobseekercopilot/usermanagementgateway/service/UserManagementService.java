@@ -1,6 +1,6 @@
 package com.jobseekercopilot.usermanagementgateway.service;
 
-import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
@@ -28,6 +28,7 @@ import com.jobseekercopilot.usermanagementgateway.model.Role;
 public class UserManagementService implements IUserManagementService {
 
     private static final Logger log = LoggerFactory.getLogger(UserManagementService.class);
+    private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
     @Autowired
     private AuthenticationApi authenticationApi;
@@ -44,23 +45,17 @@ public class UserManagementService implements IUserManagementService {
         log.info("user-management-gateway registration received hasProfile={}",
                 request != null && request.getProfile() != null);
         if (request == null) {
-            return new GatewayResponse(400, false, "Invalid registration details.");
+            return invalidRequest();
         }
 
         String name = request.getName();
         String email = request.getEmail();
         String password = request.getPassword();
 
-        if (name == null || name.trim().length() < 2) {
-            return new GatewayResponse(400, false, "Invalid registration details. Full name must be at least 2 characters.");
-        }
-
-        if (email == null || !email.contains("@")) {
-            return new GatewayResponse(400, false, "Invalid registration details. Email address pattern is invalid.");
-        }
-
-        if (password == null || password.length() < 4) {
-            return new GatewayResponse(400, false, "Invalid password. Must be at least 4 characters long.");
+        if (!hasCodePointLength(name, 1, 100)
+                || !hasCodePointLength(email, 1, 254) || !EMAIL.matcher(email).matches()
+                || !hasCodePointLength(password, 15, 128)) {
+            return invalidRequest();
         }
 
         try {
@@ -104,14 +99,12 @@ public class UserManagementService implements IUserManagementService {
             log.warn("user-management-gateway registration failed status={} durationMs={}",
                     ex.getStatusCode().value(),
                     (System.nanoTime() - startedAt) / 1_000_000);
-            String errorMsg = getErrorMessage(ex);
-            return new GatewayResponse(ex.getStatusCode().value(), false, errorMsg);
+            return downstreamRejected(ex);
         } catch (Exception ex) {
             log.error("user-management-gateway registration failed durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
-                    ex.getClass().getSimpleName(),
-                    ex);
-            return new GatewayResponse(500, false, "Failed to register user: " + ex.getMessage());
+                    ex.getClass().getSimpleName());
+            return internalError();
         }
     }
 
@@ -120,14 +113,15 @@ public class UserManagementService implements IUserManagementService {
         long startedAt = System.nanoTime();
         log.info("user-management-gateway login received hasRequest={}", request != null);
         if (request == null) {
-            return new GatewayResponse(400, false, "Missing credentials.");
+            return invalidRequest();
         }
 
         String email = request.getEmail();
         String password = request.getPassword();
 
-        if (email == null || password == null || email.trim().isEmpty() || password.isEmpty()) {
-            return new GatewayResponse(400, false, "Missing credentials. Both email and password must be supplied.");
+        if (!hasCodePointLength(email, 1, 254) || !EMAIL.matcher(email).matches()
+                || !hasCodePointLength(password, 1, 128)) {
+            return invalidRequest();
         }
 
         try {
@@ -170,14 +164,12 @@ public class UserManagementService implements IUserManagementService {
             log.warn("user-management-gateway login failed status={} durationMs={}",
                     ex.getStatusCode().value(),
                     (System.nanoTime() - startedAt) / 1_000_000);
-            String errorMsg = getErrorMessage(ex);
-            return new GatewayResponse(ex.getStatusCode().value(), false, errorMsg);
+            return downstreamRejected(ex);
         } catch (Exception ex) {
             log.error("user-management-gateway login failed durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
-                    ex.getClass().getSimpleName(),
-                    ex);
-            return new GatewayResponse(500, false, "Failed to log in user: " + ex.getMessage());
+                    ex.getClass().getSimpleName());
+            return internalError();
         }
     }
 
@@ -222,14 +214,12 @@ public class UserManagementService implements IUserManagementService {
             log.warn("user-management-gateway profile request failed status={} durationMs={}",
                     ex.getStatusCode().value(),
                     (System.nanoTime() - startedAt) / 1_000_000);
-            String errorMsg = getErrorMessage(ex);
-            return new GatewayResponse(ex.getStatusCode().value(), false, errorMsg);
+            return downstreamRejected(ex);
         } catch (Exception ex) {
             log.error("user-management-gateway profile request failed durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
-                    ex.getClass().getSimpleName(),
-                    ex);
-            return new GatewayResponse(500, false, "Failed to retrieve user profile: " + ex.getMessage());
+                    ex.getClass().getSimpleName());
+            return internalError();
         }
     }
 
@@ -266,33 +256,46 @@ public class UserManagementService implements IUserManagementService {
             log.warn("user-management-gateway profile update failed status={} durationMs={}",
                     ex.getStatusCode().value(),
                     (System.nanoTime() - startedAt) / 1_000_000);
-            String errorMsg = getErrorMessage(ex);
-            return new GatewayResponse(ex.getStatusCode().value(), false, errorMsg);
+            return downstreamRejected(ex);
         } catch (Exception ex) {
             log.error("user-management-gateway profile update failed durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
-                    ex.getClass().getSimpleName(),
-                    ex);
-            return new GatewayResponse(500, false, "Failed to update profile via profile service: " + ex.getMessage());
+                    ex.getClass().getSimpleName());
+            return internalError();
         }
     }
 
-    private String getErrorMessage(HttpClientErrorException ex) {
-        try {
-            String body = ex.getResponseBodyAsString();
-            if (body != null && !body.trim().isEmpty()) {
-                Map<String, Object> map = objectMapper.readValue(body, Map.class);
-                if (map.containsKey("message")) {
-                    return (String) map.get("message");
-                }
-            }
-        } catch (Exception ignored) {
-        }
-        return ex.getMessage();
+    private GatewayResponse downstreamRejected(HttpClientErrorException ex) {
+        int status = ex.getStatusCode().value();
+        return switch (status) {
+            case 400 -> GatewayResponse.failure(400, "DOWNSTREAM_VALIDATION_FAILED", "Request validation failed.");
+            case 401 -> GatewayResponse.failure(401, "AUTHENTICATION_FAILED", "Invalid email or password.");
+            case 404 -> GatewayResponse.failure(404, "NOT_FOUND", "The requested resource was not found.");
+            case 409 -> GatewayResponse.failure(409, "ACCOUNT_ALREADY_EXISTS", "An account with this email already exists.");
+            case 429 -> GatewayResponse.failure(429, "TOO_MANY_AUTHENTICATION_ATTEMPTS",
+                    "Too many authentication attempts. Try again later.");
+            default -> GatewayResponse.failure(status, "DOWNSTREAM_REQUEST_REJECTED", "The request was rejected.");
+        };
     }
 
     private GatewayResponse dependencyUnavailable() {
-        return new GatewayResponse(503, false, "A required service is temporarily unavailable.");
+        return GatewayResponse.failure(503, "DEPENDENCY_UNAVAILABLE", "A required service is temporarily unavailable.");
+    }
+
+    private GatewayResponse invalidRequest() {
+        return GatewayResponse.failure(400, "REQUEST_VALIDATION_FAILED", "Request validation failed.");
+    }
+
+    private GatewayResponse internalError() {
+        return GatewayResponse.failure(500, "INTERNAL_ERROR", "An unexpected error occurred.");
+    }
+
+    private boolean hasCodePointLength(String value, int minimum, int maximum) {
+        if (value == null) {
+            return false;
+        }
+        int count = value.codePointCount(0, value.length());
+        return count >= minimum && count <= maximum;
     }
 
     private com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse getUser(
