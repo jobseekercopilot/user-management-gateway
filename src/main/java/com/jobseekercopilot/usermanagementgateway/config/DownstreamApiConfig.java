@@ -17,11 +17,13 @@ public class DownstreamApiConfig {
     AuthenticationApi authenticationApi(
             @Value("${authentication.service.url}") String basePath,
             @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
+            AuthenticationServiceIdentityInterceptor serviceIdentityInterceptor,
             @Qualifier("authenticationResilienceInterceptor") DownstreamResilienceInterceptor resilienceInterceptor,
             @Value("${downstream.connect-timeout-ms}") int connectTimeoutMs,
             @Value("${downstream.read-timeout-ms}") int readTimeoutMs) {
         RestTemplate restTemplate = restTemplate(
                 correlationIdInterceptor, resilienceInterceptor, connectTimeoutMs, readTimeoutMs);
+        restTemplate.getInterceptors().add(0, serviceIdentityInterceptor);
         var apiClient = new com.jobseekercopilot.generated.authenticationservice.client.ApiClient(restTemplate);
         apiClient.setBasePath(basePath);
         return new AuthenticationApi(apiClient);

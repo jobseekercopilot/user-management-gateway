@@ -30,7 +30,8 @@ exit.
 ## Run locally
 
 Start authentication-service and user-profile-service according to their own
-local documentation, then start the gateway:
+local documentation. Put the same private, randomly generated service identity
+in both processes through their runtime secret source, then start the gateway:
 
 ```bash
 mvn spring-boot:run
@@ -56,6 +57,7 @@ open duration passes.
 |---|---:|---|
 | `SERVER_PORT` | `8083` | Gateway listener |
 | `AUTHENTICATION_SERVICE_URL` | `http://localhost:8084` | Base URL; authentication-service owner |
+| `AUTHENTICATION_SERVICE_TOKEN` | none | Required minimum 32-byte service identity; shared only with authentication-service through the runtime secret manager |
 | `USER_PROFILE_SERVICE_URL` | `http://localhost:8085` | Base URL; user-profile-service owner |
 | `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES` | `65536` | Positive maximum bytes accepted on `POST`, `PUT` and `PATCH` bodies |
 | `DOWNSTREAM_CONNECT_TIMEOUT_MS` | `500` | Positive milliseconds |
@@ -66,16 +68,26 @@ open duration passes.
 | `DOWNSTREAM_BULKHEAD_MAX_CONCURRENT` | `32` | Positive calls per dependency |
 | `APP_LOG_LEVEL` | `INFO` | Gateway package log level |
 
-Invalid non-positive resilience or request-size values fail application
-startup. Registration, login and profile writes are never automatically
+Invalid non-positive resilience or request-size values and a missing/short
+authentication-service identity fail application startup. The gateway replaces
+any browser-supplied `X-Service-Token` with its configured value only on the
+dedicated authentication-service client; never expose that header in a public
+API contract or proxy it generically. Rotate the value in the gateway first and
+authentication-service second using an approved overlap procedure if continuous
+availability is required; the current single-token contract otherwise requires
+a coordinated restart.
+
+Registration, login and profile writes are never automatically
 retried; only idempotent profile reads use the configured attempt budget.
 Authentication and profile have independent circuit and concurrency state.
 
 The gateway owns no signing key. `JWT_SIGNING_KEY` belongs in the ignored local
 environment configuration of authentication-service and must not be passed to
-or stored by this service. A bearer token is request data, not gateway
-configuration. Keep passwords, signing keys and complete JWTs out of logs,
-command-line arguments, URLs, source, fixtures and issue comments.
+or stored by this service. The authentication service identity is distinct from
+JWT signing material and browser bearer tokens. Keep passwords, real service
+identity values, signing keys and complete JWTs out of logs, command-line
+arguments, URLs, source, fixtures and issue comments. Clearly labelled
+synthetic test values are not deployment credentials.
 
 ## Failure diagnosis
 
