@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
-@SpringBootTest
+@SpringBootTest(properties =
+        "authentication.service.token=test-only-authentication-service-token-32-bytes")
 class DocumentationContractTest {
     private static final Set<String> DOCUMENTED_ROUTES = Set.of(
             "GET /api/auth/profile",
@@ -28,6 +29,7 @@ class DocumentationContractTest {
 
     private static final Map<String, String> CONFIGURATION = Map.ofEntries(
             Map.entry("APP_LOG_LEVEL", "${APP_LOG_LEVEL"),
+            Map.entry("AUTHENTICATION_SERVICE_TOKEN", "${AUTHENTICATION_SERVICE_TOKEN"),
             Map.entry("AUTHENTICATION_SERVICE_URL", "${AUTHENTICATION_SERVICE_URL"),
             Map.entry("DOWNSTREAM_BULKHEAD_MAX_CONCURRENT", "${DOWNSTREAM_BULKHEAD_MAX_CONCURRENT"),
             Map.entry("DOWNSTREAM_CIRCUIT_FAILURE_THRESHOLD", "${DOWNSTREAM_CIRCUIT_FAILURE_THRESHOLD"),

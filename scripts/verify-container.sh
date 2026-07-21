@@ -19,7 +19,10 @@ test "$configured_user" = "10001:10001"
 healthcheck=$(docker image inspect --format '{{json .Config.Healthcheck.Test}}' "$image_name")
 test "$healthcheck" != "null"
 
-container_id=$(docker run --detach --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m "$image_name")
+AUTHENTICATION_SERVICE_TOKEN=${AUTHENTICATION_SERVICE_TOKEN:-container-test-auth-service-token-32-bytes}
+export AUTHENTICATION_SERVICE_TOKEN
+container_id=$(docker run --detach --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+    --env AUTHENTICATION_SERVICE_TOKEN "$image_name")
 
 attempt=0
 while [ "$attempt" -lt 45 ]; do

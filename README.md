@@ -48,6 +48,7 @@ select a user.
 |---|---|---|
 | `SERVER_PORT` | `8083` | HTTP port |
 | `AUTHENTICATION_SERVICE_URL` | `http://localhost:8084` | Authentication API |
+| `AUTHENTICATION_SERVICE_TOKEN` | none; required | Minimum 32-byte service identity shared only with authentication-service |
 | `USER_PROFILE_SERVICE_URL` | `http://localhost:8085` | Profile API |
 | `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES` | `65536` | Positive maximum request-body size for write routes |
 | `DOWNSTREAM_CONNECT_TIMEOUT_MS` | `500` | Connection deadline for each downstream call |
@@ -59,11 +60,13 @@ select a user.
 | `APP_LOG_LEVEL` | `INFO` | Application log level |
 
 All resilience values and the request-body limit must be positive or startup
-fails. This service has no
-signing key or database credential of its own. JWT signing configuration
-belongs to authentication-service. Bearer tokens and downstream secrets must
-be supplied at runtime and must never be committed or placed in command-line
-arguments, URLs or logs.
+fails. `AUTHENTICATION_SERVICE_TOKEN` must contain at least 32 bytes; the
+gateway injects it only into its server-side authentication-service client and
+replaces any same-named inbound value. Supply the identical value to
+authentication-service through the runtime secret manager. This service has no
+JWT signing key or database credential of its own. Bearer tokens and downstream
+secrets must never be committed or placed in command-line arguments, URLs or
+logs.
 
 ## Downstream failure behaviour
 

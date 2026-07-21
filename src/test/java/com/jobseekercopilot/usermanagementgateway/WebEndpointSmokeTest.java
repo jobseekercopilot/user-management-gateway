@@ -10,7 +10,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties =
+        "authentication.service.token=test-only-authentication-service-token-32-bytes")
 @AutoConfigureMockMvc
 class WebEndpointSmokeTest {
 
