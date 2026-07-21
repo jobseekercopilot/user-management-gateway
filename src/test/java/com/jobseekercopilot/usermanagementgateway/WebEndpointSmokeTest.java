@@ -22,7 +22,8 @@ class WebEndpointSmokeTest {
     void actuatorHealthIsMapped() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UP"));
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components").doesNotExist());
     }
 
     @Test
@@ -30,7 +31,17 @@ class WebEndpointSmokeTest {
         mockMvc.perform(get("/actuator/health/readiness"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(jsonPath("$.components.downstreamDependencies.status").value("UP"));
+                .andExpect(jsonPath("$.components.downstreamDependencies.status").value("UP"))
+                .andExpect(jsonPath("$.components.downstreamDependencies.details.authentication-service")
+                        .value("AVAILABLE"))
+                .andExpect(jsonPath("$.components.downstreamDependencies.details.user-profile-service")
+                        .value("AVAILABLE"));
+    }
+
+    @Test
+    void actuatorMetricsAreNotPubliclyExposed() throws Exception {
+        mockMvc.perform(get("/actuator/metrics"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

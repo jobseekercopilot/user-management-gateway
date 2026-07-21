@@ -25,7 +25,9 @@ mvn spring-boot:run
 
 After startup, `curl --fail http://localhost:8083/actuator/health` checks the
 process. See the [operations guide](docs/OPERATIONS.md) for configuration,
-readiness semantics, container checks and troubleshooting.
+readiness semantics, container checks and troubleshooting. The
+[observability contract](docs/OBSERVABILITY.md) documents safe metrics,
+correlation propagation, dashboard panels and initial alert thresholds.
 
 ## API
 
