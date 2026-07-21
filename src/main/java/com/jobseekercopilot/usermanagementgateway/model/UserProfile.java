@@ -2,6 +2,7 @@ package com.jobseekercopilot.usermanagementgateway.model;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.Size;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 public class UserProfile {
     @Size(max = 100)
     private List<@Size(max = 100) String> skills;

@@ -63,7 +63,7 @@ class UserManagementControllerTest {
         GatewayResponse serviceResponse = new GatewayResponse(200, true, "Profile retrieved");
         when(userManagementService.getProfile(token)).thenReturn(serviceResponse);
 
-        ResponseEntity<GatewayResponse> response = userManagementController.getProfile("test@test.com", token);
+        ResponseEntity<GatewayResponse> response = userManagementController.getProfile(token);
 
         assertEquals(200, response.getStatusCodeValue());
         assertTrue(response.getBody().isSuccess());
@@ -78,7 +78,7 @@ class UserManagementControllerTest {
         GatewayResponse serviceResponse = new GatewayResponse(200, true, "Profile updated");
         when(userManagementService.updateProfile(profile, token)).thenReturn(serviceResponse);
 
-        ResponseEntity<GatewayResponse> response = userManagementController.updateProfile("test@test.com", profile, token);
+        ResponseEntity<GatewayResponse> response = userManagementController.updateProfile(profile, token);
 
         assertEquals(200, response.getStatusCodeValue());
         assertTrue(response.getBody().isSuccess());
