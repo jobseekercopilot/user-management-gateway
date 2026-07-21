@@ -1,5 +1,6 @@
 package com.jobseekercopilot.usermanagementgateway.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -11,6 +12,7 @@ import com.jobseekercopilot.usermanagementgateway.validation.UnicodeLength;
 
 @Getter
 @NoArgsConstructor
+@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 public class RegisterRequest {
     @NotNull
     @UnicodeLength(min = 1, max = 100)

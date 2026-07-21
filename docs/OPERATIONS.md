@@ -129,7 +129,7 @@ handling rules.
 
 - UMG-02: registration atomicity/idempotency.
 - UMG-05: public gateway security policy and rate controls.
-- UMG-06: OpenAPI authentication/ownership semantics and legacy query removal.
+- UMG-06 is complete: OpenAPI authentication/ownership semantics and legacy query removal are contract-tested.
 - UMG-07: broader cross-service and browser integration coverage.
 - Platform/deployment owners: private metrics export, deployed dashboards,
   alert routing and trace backend selection as described in the observability

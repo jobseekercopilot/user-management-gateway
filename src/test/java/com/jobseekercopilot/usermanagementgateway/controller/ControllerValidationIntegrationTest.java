@@ -115,6 +115,19 @@ class ControllerValidationIntegrationTest {
     }
 
     @Test
+    void rejectsUnknownRequestFieldsInsteadOfSilentlyDiscardingSchemaDrift() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"user@example.test","password":"A valid local passphrase 2026!","userId":"other-user"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("MALFORMED_JSON"));
+
+        verifyNoInteractions(userManagementService);
+    }
+
+    @Test
     void rejectsUnsupportedContentType() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.TEXT_PLAIN)

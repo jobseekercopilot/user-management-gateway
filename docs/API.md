@@ -108,10 +108,9 @@ asks authentication-service to derive the user ID from the token, then reads
 that ID's profile. If no profile exists it creates an empty one. Success is
 `200`; the response user does not contain a token.
 
-The controller still accepts an optional `email` query parameter for backwards
-compatibility, but ignores it. It is not an identity or authorisation input and
-clients must omit it. Removal and an accurate OpenAPI security scheme are
-tracked in UMG-06.
+The route has no email or user-ID selector. Its OpenAPI operation declares the
+HTTP `bearerAuth` scheme; the raw `Authorization` header is not duplicated as
+an optional generated-client parameter.
 
 ## Update the current profile
 
@@ -179,3 +178,8 @@ downstream call.
 Examples deliberately use reserved/example values and token placeholders.
 Never paste a real password or complete JWT into documentation, issues, shell
 history, URLs or logs.
+
+Unknown JSON request properties are rejected with the stable version 1 error
+envelope rather than silently discarded. Additive response fields require an
+explicit reviewed public-contract change. See
+[the OpenAPI ownership contract](OPENAPI_CONTRACT.md).

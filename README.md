@@ -40,9 +40,9 @@ correlation propagation, dashboard panels and initial alert thresholds.
 
 The complete payload fields, examples and response envelope are in the
 [API reference](docs/API.md). Runtime OpenAPI is available at `/v3/api-docs`
-and Swagger UI at `/swagger-ui/index.html`. The optional legacy `email` query
-parameter on profile routes is ignored; clients must not send it or use it to
-select a user.
+and Swagger UI at `/swagger-ui/index.html`. Profile operations use the
+`bearerAuth` security scheme and derive ownership from the authenticated token;
+there is no email or user-ID selector.
 
 ## Configuration
 
