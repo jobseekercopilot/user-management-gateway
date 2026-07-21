@@ -11,6 +11,7 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +41,11 @@ public class ApiExceptionHandler {
     ResponseEntity<GatewayResponse> unsupportedMediaType() {
         return failure(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE",
                 "Content-Type must be application/json.");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<GatewayResponse> notFound() {
+        return failure(HttpStatus.NOT_FOUND, "NOT_FOUND", "The requested resource was not found.");
     }
 
     @ExceptionHandler(Exception.class)

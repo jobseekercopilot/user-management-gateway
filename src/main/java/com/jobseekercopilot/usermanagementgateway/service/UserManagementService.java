@@ -85,8 +85,7 @@ public class UserManagementService implements IUserManagementService {
             UserProfile userProfile = createOrUpdateProfile(userAccountResponse.getId(), initialProfile);
 
             User user = new User(userAccountResponse.getId(), name, email, userProfile, loginResponse.getToken());
-            log.info("user-management-gateway registration completed userId={} durationMs={}",
-                    userAccountResponse.getId(),
+            log.info("user-management-gateway registration completed durationMs={}",
                     (System.nanoTime() - startedAt) / 1_000_000);
 
             return new GatewayResponse(201, true, "Claimant account registered securely with the User Management Gateway.", user);
@@ -150,8 +149,7 @@ public class UserManagementService implements IUserManagementService {
             }
 
             User user = new User(userId, userAccountResponse.getName(), userAccountResponse.getEmail(), profile, loginResponse.getToken());
-            log.info("user-management-gateway login completed userId={} durationMs={}",
-                    userId,
+            log.info("user-management-gateway login completed durationMs={}",
                     (System.nanoTime() - startedAt) / 1_000_000);
 
             return new GatewayResponse(200, true, "Credentials verified and secure handshake completed by gateway.", user);
@@ -201,8 +199,7 @@ public class UserManagementService implements IUserManagementService {
             }
 
             User user = new User(userId, userAccount.getName(), userAccount.getEmail(), profile);
-            log.info("user-management-gateway profile request completed userId={} durationMs={}",
-                    userId,
+            log.info("user-management-gateway profile request completed durationMs={}",
                     (System.nanoTime() - startedAt) / 1_000_000);
             return new GatewayResponse(200, true, "User profile retrieved successfully from the gateway.", user);
         } catch (ResourceAccessException | HttpServerErrorException ex) {
@@ -243,8 +240,7 @@ public class UserManagementService implements IUserManagementService {
             UserProfile updatedProfile = createOrUpdateProfile(userAccountResponse.getId(), profile);
 
             User user = new User(userAccountResponse.getId(), userAccountResponse.getName(), userAccountResponse.getEmail(), updatedProfile);
-            log.info("user-management-gateway profile update completed userId={} durationMs={}",
-                    userAccountResponse.getId(),
+            log.info("user-management-gateway profile update completed durationMs={}",
                     (System.nanoTime() - startedAt) / 1_000_000);
             return new GatewayResponse(200, true, "User profile updated successfully in gateway and profile service.", user);
         } catch (ResourceAccessException | HttpServerErrorException ex) {
@@ -307,27 +303,24 @@ public class UserManagementService implements IUserManagementService {
         long startedAt = System.nanoTime();
         log.info("Calling authentication-service current user");
         var response = authenticationApi.getCurrentUser("Bearer " + cleanToken);
-        log.info("authentication-service current user returned userId={} durationMs={}",
-                response == null ? null : response.getId(),
+        log.info("authentication-service current user returned durationMs={}",
                 (System.nanoTime() - startedAt) / 1_000_000);
         return response;
     }
 
     private UserProfile getProfileByUserId(String userId) {
         long startedAt = System.nanoTime();
-        log.info("Calling user-profile-service get profile userId={}", userId);
+        log.info("Calling user-profile-service get profile");
         var downstream = userProfilesApi.getMyProfile(userId);
         UserProfile profile = objectMapper.convertValue(downstream, UserProfile.class);
-        log.info("user-profile-service get profile returned userId={} durationMs={}",
-                userId,
+        log.info("user-profile-service get profile returned durationMs={}",
                 (System.nanoTime() - startedAt) / 1_000_000);
         return profile;
     }
 
     private UserProfile createOrUpdateProfile(String userId, UserProfile profile) {
         long startedAt = System.nanoTime();
-        log.info("Calling user-profile-service save profile userId={} skillsCount={} qualificationsCount={} rolesCount={}",
-                userId,
+        log.info("Calling user-profile-service save profile skillsCount={} qualificationsCount={} rolesCount={}",
                 profile == null || profile.getSkills() == null ? 0 : profile.getSkills().size(),
                 profile == null || profile.getQualifications() == null ? 0 : profile.getQualifications().size(),
                 profile == null || profile.getRoles() == null ? 0 : profile.getRoles().size());
@@ -336,8 +329,7 @@ public class UserManagementService implements IUserManagementService {
                 com.jobseekercopilot.generated.userprofileservice.model.UserProfile.class);
         var downstreamResponse = userProfilesApi.createOrUpdateMyProfile(userId, downstreamRequest);
         UserProfile savedProfile = objectMapper.convertValue(downstreamResponse, UserProfile.class);
-        log.info("user-profile-service save profile returned userId={} durationMs={}",
-                userId,
+        log.info("user-profile-service save profile returned durationMs={}",
                 (System.nanoTime() - startedAt) / 1_000_000);
         return savedProfile;
     }

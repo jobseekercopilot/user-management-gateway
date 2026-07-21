@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -22,6 +23,8 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     public static final String SERVICE_MDC_KEY = "serviceName";
 
     private static final Logger log = LoggerFactory.getLogger(CorrelationIdFilter.class);
+    private static final Pattern SAFE_CORRELATION_ID =
+            Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}");
 
     private final String serviceName;
 
@@ -34,8 +37,11 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String correlationId = request.getHeader(HEADER_NAME);
-        if (!StringUtils.hasText(correlationId)) {
+        if (!StringUtils.hasText(correlationId)
+                || !SAFE_CORRELATION_ID.matcher(correlationId.trim()).matches()) {
             correlationId = UUID.randomUUID().toString();
+        } else {
+            correlationId = correlationId.trim();
         }
 
         long startedAt = System.nanoTime();

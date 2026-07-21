@@ -3,6 +3,7 @@ package com.jobseekercopilot.usermanagementgateway.controller;
 import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
+import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry;
 import com.jobseekercopilot.usermanagementgateway.service.UserManagementService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,6 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -31,6 +33,9 @@ class ControllerValidationIntegrationTest {
 
     @MockBean
     private UserManagementService userManagementService;
+
+    @MockBean
+    private GatewayTelemetry telemetry;
 
     @Test
     void rejectsShortPasswordWithVersionedFieldError() throws Exception {
@@ -142,5 +147,13 @@ class ControllerValidationIntegrationTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("An unexpected error occurred."))
                 .andExpect(jsonPath("$.error.code").value("INTERNAL_ERROR"));
+    }
+
+    @Test
+    void returnsSafeNotFoundForUnknownResource() throws Exception {
+        mockMvc.perform(get("/does-not-exist"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("The requested resource was not found."));
     }
 }

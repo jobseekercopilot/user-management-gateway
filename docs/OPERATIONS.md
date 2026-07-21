@@ -51,6 +51,11 @@ circuit has been observed, not that both services were actively probed. An
 `OPEN` circuit reports readiness `DOWN` and rejects calls until its configured
 open duration passes.
 
+The general endpoint intentionally hides component details. Readiness exposes
+only bounded dependency circuit states and no downstream URL, credential or
+exception. The [observability contract](OBSERVABILITY.md) defines the custom
+meters, privacy rules, dashboard panels and initial alert thresholds.
+
 ## Runtime configuration
 
 | Environment variable | Default | Constraint/owner |
@@ -108,6 +113,9 @@ synthetic test values are not deployment credentials.
 - Unexpected request result: use the response/request correlation ID to find
   metadata-only logs. Do not add request bodies, credentials, bearer headers,
   response bodies or complete tokens to diagnostic output.
+- Missing metrics or alerts: confirm the approved private meter exporter and
+  alert routing are configured by the environment owner. `/actuator/metrics`
+  is intentionally not exposed by this application.
 
 ## Branch and release workflow
 
@@ -122,6 +130,9 @@ handling rules.
 - UMG-02: registration atomicity/idempotency.
 - UMG-05: public gateway security policy and rate controls.
 - UMG-06: OpenAPI authentication/ownership semantics and legacy query removal.
-- UMG-07/08: broader integration coverage, metrics, tracing and alerting.
+- UMG-07: broader cross-service and browser integration coverage.
+- Platform/deployment owners: private metrics export, deployed dashboards,
+  alert routing and trace backend selection as described in the observability
+  contract.
 - Platform/deployment owners: production secrets, resource limits, network
   policy, monitoring platform and release process.

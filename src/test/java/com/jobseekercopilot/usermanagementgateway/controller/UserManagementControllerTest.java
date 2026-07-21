@@ -4,6 +4,8 @@ import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
 import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
+import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry;
+import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry.UserOperation;
 import com.jobseekercopilot.usermanagementgateway.service.UserManagementService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +23,9 @@ class UserManagementControllerTest {
     @Mock
     private UserManagementService userManagementService;
 
+    @Mock
+    private GatewayTelemetry telemetry;
+
     @InjectMocks
     private UserManagementController userManagementController;
 
@@ -35,6 +40,7 @@ class UserManagementControllerTest {
         assertEquals(201, response.getStatusCodeValue());
         assertTrue(response.getBody().isSuccess());
         verify(userManagementService, times(1)).register(request);
+        verify(telemetry).record(eq(UserOperation.REGISTER), same(serviceResponse), anyLong());
     }
 
     @Test
@@ -48,6 +54,7 @@ class UserManagementControllerTest {
         assertEquals(200, response.getStatusCodeValue());
         assertTrue(response.getBody().isSuccess());
         verify(userManagementService, times(1)).login(request);
+        verify(telemetry).record(eq(UserOperation.LOGIN), same(serviceResponse), anyLong());
     }
 
     @Test
@@ -61,6 +68,7 @@ class UserManagementControllerTest {
         assertEquals(200, response.getStatusCodeValue());
         assertTrue(response.getBody().isSuccess());
         verify(userManagementService, times(1)).getProfile(token);
+        verify(telemetry).record(eq(UserOperation.PROFILE_READ), same(serviceResponse), anyLong());
     }
 
     @Test
@@ -75,5 +83,6 @@ class UserManagementControllerTest {
         assertEquals(200, response.getStatusCodeValue());
         assertTrue(response.getBody().isSuccess());
         verify(userManagementService, times(1)).updateProfile(profile, token);
+        verify(telemetry).record(eq(UserOperation.PROFILE_UPDATE), same(serviceResponse), anyLong());
     }
 }
