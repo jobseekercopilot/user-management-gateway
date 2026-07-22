@@ -37,10 +37,15 @@ class OpenApiExportTest {
         JsonNode root = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
+        assertEquals("2.0.0", root.at("/info/version").asText());
         JsonNode session = root.at("/components/securitySchemes/browserSession");
         assertEquals("apiKey", session.path("type").asText());
         assertEquals("cookie", session.path("in").asText());
         assertEquals("__Host-jsc-access", session.path("name").asText());
+        JsonNode refresh = root.at("/components/securitySchemes/browserRefresh");
+        assertEquals("apiKey", refresh.path("type").asText());
+        assertEquals("cookie", refresh.path("in").asText());
+        assertEquals("__Host-jsc-refresh", refresh.path("name").asText());
         assertFalse(root.at("/components/securitySchemes").has("bearerAuth"));
 
         assertProtectedProfileOperation(root.at("/paths/~1api~1auth~1profile/get"),
