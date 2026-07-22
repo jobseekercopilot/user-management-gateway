@@ -65,6 +65,19 @@ meters, privacy rules, dashboard panels and initial alert thresholds.
 | `AUTHENTICATION_SERVICE_TOKEN` | none | Required minimum 32-byte service identity; shared only with authentication-service through the runtime secret manager |
 | `USER_PROFILE_SERVICE_URL` | `http://localhost:8085` | Base URL; user-profile-service owner |
 | `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES` | `65536` | Positive maximum bytes accepted on `POST`, `PUT` and `PATCH` bodies |
+| `GATEWAY_ACCESS_COOKIE_NAME` | `jsc-access-local` | Local HTTP cookie name; production fixes `__Host-jsc-access` |
+| `GATEWAY_REFRESH_COOKIE_NAME` | `jsc-refresh-local` | Local HTTP cookie name; production fixes `__Host-jsc-refresh` |
+| `GATEWAY_CSRF_COOKIE_NAME` | `jsc-csrf-local` | Local readable CSRF cookie; production fixes `__Host-jsc-csrf` |
+| `GATEWAY_SECURE_COOKIES` | `false` | Local HTTP only; production forces `true` |
+| `GATEWAY_ALLOWED_ORIGINS` | `http://localhost:4200` | Comma-separated exact browser origins; wildcards are invalid |
+| `GATEWAY_ACCESS_MAXIMUM_SECONDS` | `900` | Positive access-cookie lifetime cap |
+| `GATEWAY_REFRESH_MAXIMUM_SECONDS` | `604800` | Positive refresh-cookie lifetime |
+| `GATEWAY_REFRESH_CONCURRENCY_SECONDS` | `5` | Positive same-token rotation-coalescing window |
+| `GATEWAY_REFRESH_CONCURRENCY_MAXIMUM` | `1000` | Positive maximum bounded coalescing entries |
+| `GATEWAY_AUTH_RATE_MAXIMUM` | `20` | Positive requests per direct peer/window |
+| `GATEWAY_AUTH_RATE_GLOBAL_MAXIMUM` | `1000` | Positive global requests/window; at least peer maximum |
+| `GATEWAY_AUTH_RATE_WINDOW_SECONDS` | `60` | Positive rate-limit window |
+| `GATEWAY_AUTH_RATE_MAXIMUM_CLIENTS` | `10000` | Positive maximum bounded peer counters |
 | `DOWNSTREAM_CONNECT_TIMEOUT_MS` | `500` | Positive milliseconds |
 | `DOWNSTREAM_READ_TIMEOUT_MS` | `2000` | Positive milliseconds |
 | `DOWNSTREAM_RETRY_MAX_ATTEMPTS` | `2` | Positive total attempts for idempotent GET calls |
@@ -73,8 +86,12 @@ meters, privacy rules, dashboard panels and initial alert thresholds.
 | `DOWNSTREAM_BULKHEAD_MAX_CONCURRENT` | `32` | Positive calls per dependency |
 | `APP_LOG_LEVEL` | `INFO` | Gateway package log level |
 
-Invalid non-positive resilience or request-size values and a missing/short
-authentication-service identity fail application startup. The gateway replaces
+Invalid resilience, request-size, session, rate or origin values and a
+missing/short authentication-service identity fail application startup. The
+`production` profile additionally requires explicit HTTPS origins, forces
+Secure `__Host-` cookies and disables API documentation. The default profile
+is the explicit localhost HTTP developer boundary and is not a production
+configuration. The gateway replaces
 any browser-supplied `X-Service-Token` with its configured value only on the
 dedicated authentication-service client; never expose that header in a public
 API contract or proxy it generically. Rotate the value in the gateway first and
@@ -104,6 +121,12 @@ synthetic test values are not deployment credentials.
   limit after reviewing the memory and abuse impact.
 - `400` with `REQUEST_VALIDATION_FAILED`: use the machine-readable field and
   constraint codes. Rejected values are intentionally not echoed.
+- `401` with `SESSION_REQUIRED` or `SESSION_EXPIRED`: bootstrap/login again;
+  do not add browser bearer headers or inspect HttpOnly cookie values.
+- `403` with `REQUEST_FORBIDDEN`: bootstrap `GET /api/auth/csrf`, echo its
+  returned token under its returned header name, and include credentials.
+- `429` with `TOO_MANY_AUTHENTICATION_ATTEMPTS`: respect `Retry-After`; do not
+  disable or bypass the rate gate.
 - Connection failure at startup is not expected: downstream connections are
   lazy. Confirm URLs and services before exercising an API request.
 - Generated-client compilation failure: validate the two tracked YAML files,
@@ -128,7 +151,8 @@ handling rules.
 ## Residual ownership
 
 - UMG-02: registration atomicity/idempotency.
-- UMG-05: public gateway security policy and rate controls.
+- UMG-05 is complete in repository code: cookie session boundary, CSRF,
+  explicit origins, deny-by-default routing, safe headers and auth rate gates.
 - UMG-06 is complete: OpenAPI authentication/ownership semantics and legacy query removal are contract-tested.
 - UMG-07: broader cross-service and browser integration coverage.
 - Platform/deployment owners: private metrics export, deployed dashboards,

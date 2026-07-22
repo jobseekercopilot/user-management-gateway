@@ -33,23 +33,30 @@ class OpenApiExportTest {
     }
 
     @Test
-    void contractExpressesBearerOwnershipAndVersionedErrorsWithoutDeadParameters() throws Exception {
+    void contractExpressesCookieOwnershipAndVersionedErrorsWithoutTokenExposure() throws Exception {
         JsonNode root = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
-        JsonNode bearer = root.at("/components/securitySchemes/bearerAuth");
-        assertEquals("http", bearer.path("type").asText());
-        assertEquals("bearer", bearer.path("scheme").asText());
-        assertEquals("JWT", bearer.path("bearerFormat").asText());
+        JsonNode session = root.at("/components/securitySchemes/browserSession");
+        assertEquals("apiKey", session.path("type").asText());
+        assertEquals("cookie", session.path("in").asText());
+        assertEquals("__Host-jsc-access", session.path("name").asText());
+        assertFalse(root.at("/components/securitySchemes").has("bearerAuth"));
 
         assertProtectedProfileOperation(root.at("/paths/~1api~1auth~1profile/get"),
-                "200", "400", "401", "404", "409", "429", "500", "503");
+                "200", "401", "404", "409", "429", "500", "503");
         assertProtectedProfileOperation(root.at("/paths/~1api~1auth~1profile/put"),
-                "200", "400", "401", "404", "409", "413", "415", "429", "500", "503");
+                "200", "400", "401", "403", "404", "409", "413", "415", "429", "500", "503");
         assertPublicOperation(root.at("/paths/~1api~1auth~1register/post"),
-                "201", "400", "409", "413", "415", "429", "500", "503");
+                "201", "400", "403", "409", "413", "415", "429", "500", "503");
         assertPublicOperation(root.at("/paths/~1api~1auth~1login/post"),
-                "200", "400", "401", "413", "415", "429", "500", "503");
+                "200", "400", "401", "403", "413", "415", "429", "500", "503");
+        assertTrue(root.at("/paths/~1api~1auth~1csrf/get").isObject());
+        assertTrue(root.at("/paths/~1api~1auth~1refresh/post/security").toString()
+                .contains("browserRefresh"));
+        assertTrue(root.at("/paths/~1api~1auth~1logout/post/security").toString()
+                .contains("browserSession"));
+        assertFalse(root.at("/components/schemas/User/properties").has("token"));
 
         assertTrue(root.at("/components/schemas/ApiError/properties/schemaVersion").isObject());
         assertTrue(root.at("/components/schemas/ApiError/properties/code").isObject());
@@ -66,7 +73,7 @@ class OpenApiExportTest {
 
     private void assertProtectedProfileOperation(JsonNode operation, String... responses) {
         assertTrue(operation.isObject());
-        assertTrue(operation.path("security").toString().contains("bearerAuth"));
+        assertTrue(operation.path("security").toString().contains("browserSession"));
         assertFalse(operation.path("parameters").toString().contains("email"));
         assertFalse(operation.path("parameters").toString().contains("Authorization"));
         assertResponses(operation, responses);

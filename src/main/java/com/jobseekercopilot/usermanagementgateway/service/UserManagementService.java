@@ -22,6 +22,7 @@ import com.jobseekercopilot.usermanagementgateway.model.User;
 import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
 import com.jobseekercopilot.usermanagementgateway.model.Qualification;
 import com.jobseekercopilot.usermanagementgateway.model.Role;
+import com.jobseekercopilot.usermanagementgateway.model.SessionOutcome;
 
 @Service
 @Primary
@@ -41,11 +42,15 @@ public class UserManagementService implements IUserManagementService {
 
     @Override
     public GatewayResponse register(RegisterRequest request) {
+        return registerSession(request).response();
+    }
+
+    public SessionOutcome registerSession(RegisterRequest request) {
         long startedAt = System.nanoTime();
         log.info("user-management-gateway registration received hasProfile={}",
                 request != null && request.getProfile() != null);
         if (request == null) {
-            return invalidRequest();
+            return SessionOutcome.failure(invalidRequest());
         }
 
         String name = request.getName();
@@ -55,7 +60,7 @@ public class UserManagementService implements IUserManagementService {
         if (!hasCodePointLength(name, 1, 100)
                 || !hasCodePointLength(email, 1, 254) || !EMAIL.matcher(email).matches()
                 || !hasCodePointLength(password, 15, 128)) {
-            return invalidRequest();
+            return SessionOutcome.failure(invalidRequest());
         }
 
         try {
@@ -82,37 +87,42 @@ public class UserManagementService implements IUserManagementService {
             null, // aspirations
             null  // workPreferences
         );
-            UserProfile userProfile = createOrUpdateProfile(userAccountResponse.getId(), initialProfile);
+            UserProfile userProfile = createOrUpdateProfile(loginResponse.getToken(), initialProfile);
 
-            User user = new User(userAccountResponse.getId(), name, email, userProfile, loginResponse.getToken());
+            User user = new User(userAccountResponse.getId(), name, email, userProfile);
             log.info("user-management-gateway registration completed durationMs={}",
                     (System.nanoTime() - startedAt) / 1_000_000);
 
-            return new GatewayResponse(201, true, "Claimant account registered securely with the User Management Gateway.", user);
+            return sessionOutcome(new GatewayResponse(201, true,
+                    "Claimant account registered securely with the User Management Gateway.", user), loginResponse);
         } catch (ResourceAccessException | HttpServerErrorException ex) {
             log.warn("user-management-gateway registration dependency unavailable durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
                     ex.getClass().getSimpleName());
-            return dependencyUnavailable();
+            return SessionOutcome.failure(dependencyUnavailable());
         } catch (HttpClientErrorException ex) {
             log.warn("user-management-gateway registration failed status={} durationMs={}",
                     ex.getStatusCode().value(),
                     (System.nanoTime() - startedAt) / 1_000_000);
-            return downstreamRejected(ex);
+            return SessionOutcome.failure(downstreamRejected(ex));
         } catch (Exception ex) {
             log.error("user-management-gateway registration failed durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
                     ex.getClass().getSimpleName());
-            return internalError();
+            return SessionOutcome.failure(internalError());
         }
     }
 
     @Override
     public GatewayResponse login(LoginRequest request) {
+        return loginSession(request).response();
+    }
+
+    public SessionOutcome loginSession(LoginRequest request) {
         long startedAt = System.nanoTime();
         log.info("user-management-gateway login received hasRequest={}", request != null);
         if (request == null) {
-            return invalidRequest();
+            return SessionOutcome.failure(invalidRequest());
         }
 
         String email = request.getEmail();
@@ -120,7 +130,7 @@ public class UserManagementService implements IUserManagementService {
 
         if (!hasCodePointLength(email, 1, 254) || !EMAIL.matcher(email).matches()
                 || !hasCodePointLength(password, 1, 128)) {
-            return invalidRequest();
+            return SessionOutcome.failure(invalidRequest());
         }
 
         try {
@@ -137,7 +147,7 @@ public class UserManagementService implements IUserManagementService {
             // Resilient fallback using the updated 4-string constructor if no profile exists yet
             UserProfile profile;
             try {
-                profile = getProfileByUserId(userId);
+                profile = getProfileByAccessToken(loginResponse.getToken());
             } catch (HttpClientErrorException.NotFound ex) {
                 profile = new UserProfile(
                     java.util.Collections.<String>emptyList(),
@@ -148,26 +158,27 @@ public class UserManagementService implements IUserManagementService {
                 );
             }
 
-            User user = new User(userId, userAccountResponse.getName(), userAccountResponse.getEmail(), profile, loginResponse.getToken());
+            User user = new User(userId, userAccountResponse.getName(), userAccountResponse.getEmail(), profile);
             log.info("user-management-gateway login completed durationMs={}",
                     (System.nanoTime() - startedAt) / 1_000_000);
 
-            return new GatewayResponse(200, true, "Credentials verified and secure handshake completed by gateway.", user);
+            return sessionOutcome(new GatewayResponse(200, true,
+                    "Credentials verified and secure handshake completed by gateway.", user), loginResponse);
         } catch (ResourceAccessException | HttpServerErrorException ex) {
             log.warn("user-management-gateway login dependency unavailable durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
                     ex.getClass().getSimpleName());
-            return dependencyUnavailable();
+            return SessionOutcome.failure(dependencyUnavailable());
         } catch (HttpClientErrorException ex) {
             log.warn("user-management-gateway login failed status={} durationMs={}",
                     ex.getStatusCode().value(),
                     (System.nanoTime() - startedAt) / 1_000_000);
-            return downstreamRejected(ex);
+            return SessionOutcome.failure(downstreamRejected(ex));
         } catch (Exception ex) {
             log.error("user-management-gateway login failed durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
                     ex.getClass().getSimpleName());
-            return internalError();
+            return SessionOutcome.failure(internalError());
         }
     }
 
@@ -185,7 +196,7 @@ public class UserManagementService implements IUserManagementService {
 
             UserProfile profile;
             try {
-                profile = getProfileByUserId(userId);
+                profile = getProfileByAccessToken(token);
             } catch (HttpClientErrorException.NotFound ex) {
                 // Creates a blank 4-field profile if missing downstream
                 UserProfile initialProfile = new UserProfile(
@@ -195,7 +206,7 @@ public class UserManagementService implements IUserManagementService {
                 null,
                 null
 );
-                profile = createOrUpdateProfile(userId, initialProfile);
+                profile = createOrUpdateProfile(token, initialProfile);
             }
 
             User user = new User(userId, userAccount.getName(), userAccount.getEmail(), profile);
@@ -237,7 +248,7 @@ public class UserManagementService implements IUserManagementService {
 
         try {
             var userAccountResponse = getUser(token);
-            UserProfile updatedProfile = createOrUpdateProfile(userAccountResponse.getId(), profile);
+            UserProfile updatedProfile = createOrUpdateProfile(token, profile);
 
             User user = new User(userAccountResponse.getId(), userAccountResponse.getName(), userAccountResponse.getEmail(), updatedProfile);
             log.info("user-management-gateway profile update completed durationMs={}",
@@ -286,6 +297,63 @@ public class UserManagementService implements IUserManagementService {
         return GatewayResponse.failure(500, "INTERNAL_ERROR", "An unexpected error occurred.");
     }
 
+    public SessionOutcome refreshSession(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return SessionOutcome.failure(GatewayResponse.failure(
+                    401, "SESSION_REQUIRED", "The browser session is not authenticated."));
+        }
+        try {
+            var refreshed = authenticationApi.refresh(
+                    new com.jobseekercopilot.generated.authenticationservice.model.RefreshRequest()
+                            .refreshToken(refreshToken));
+            return sessionOutcome(new GatewayResponse(
+                    200, true, "Browser session refreshed."), refreshed);
+        } catch (HttpClientErrorException ex) {
+            return SessionOutcome.failure(GatewayResponse.failure(
+                    401, "SESSION_EXPIRED", "The browser session has expired."));
+        } catch (ResourceAccessException | HttpServerErrorException ex) {
+            return SessionOutcome.failure(dependencyUnavailable());
+        } catch (Exception ex) {
+            return SessionOutcome.failure(internalError());
+        }
+    }
+
+    public GatewayResponse logoutSession(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            return GatewayResponse.failure(401, "SESSION_REQUIRED", "The browser session is not authenticated.");
+        }
+        try {
+            authenticationApi.logout("Bearer " + cleanToken(accessToken));
+            return new GatewayResponse(200, true, "Browser session ended.");
+        } catch (HttpClientErrorException.Unauthorized ex) {
+            return GatewayResponse.failure(401, "SESSION_EXPIRED", "The browser session has expired.");
+        } catch (ResourceAccessException | HttpServerErrorException ex) {
+            return dependencyUnavailable();
+        } catch (Exception ex) {
+            return internalError();
+        }
+    }
+
+    public com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse authenticate(
+            String accessToken) {
+        return getUser(accessToken);
+    }
+
+    private SessionOutcome sessionOutcome(
+            GatewayResponse response,
+            com.jobseekercopilot.generated.authenticationservice.model.LoginResponse loginResponse) {
+        if (loginResponse == null || loginResponse.getToken() == null
+                || loginResponse.getToken().isBlank()
+                || loginResponse.getRefreshToken() == null
+                || loginResponse.getRefreshToken().isBlank()
+                || loginResponse.getExpiresIn() == null
+                || loginResponse.getExpiresIn() < 1) {
+            return SessionOutcome.failure(internalError());
+        }
+        return new SessionOutcome(response, loginResponse.getToken(), loginResponse.getRefreshToken(),
+                loginResponse.getExpiresIn());
+    }
+
     private boolean hasCodePointLength(String value, int minimum, int maximum) {
         if (value == null) {
             return false;
@@ -299,7 +367,7 @@ public class UserManagementService implements IUserManagementService {
         if (token == null || token.isBlank()) {
             throw new IllegalArgumentException("Token cannot be null or empty");
         }
-        String cleanToken = token.startsWith("Bearer ") ? token.substring(7) : token;
+        String cleanToken = cleanToken(token);
         long startedAt = System.nanoTime();
         log.info("Calling authentication-service current user");
         var response = authenticationApi.getCurrentUser("Bearer " + cleanToken);
@@ -308,17 +376,21 @@ public class UserManagementService implements IUserManagementService {
         return response;
     }
 
-    private UserProfile getProfileByUserId(String userId) {
+    private String cleanToken(String token) {
+        return token.startsWith("Bearer ") ? token.substring(7) : token;
+    }
+
+    private UserProfile getProfileByAccessToken(String accessToken) {
         long startedAt = System.nanoTime();
         log.info("Calling user-profile-service get profile");
-        var downstream = userProfilesApi.getMyProfile(userId);
+        var downstream = userProfilesApi.getMyProfile("Bearer " + cleanToken(accessToken));
         UserProfile profile = objectMapper.convertValue(downstream, UserProfile.class);
         log.info("user-profile-service get profile returned durationMs={}",
                 (System.nanoTime() - startedAt) / 1_000_000);
         return profile;
     }
 
-    private UserProfile createOrUpdateProfile(String userId, UserProfile profile) {
+    private UserProfile createOrUpdateProfile(String accessToken, UserProfile profile) {
         long startedAt = System.nanoTime();
         log.info("Calling user-profile-service save profile skillsCount={} qualificationsCount={} rolesCount={}",
                 profile == null || profile.getSkills() == null ? 0 : profile.getSkills().size(),
@@ -327,7 +399,8 @@ public class UserManagementService implements IUserManagementService {
         var downstreamRequest = objectMapper.convertValue(
                 profile,
                 com.jobseekercopilot.generated.userprofileservice.model.UserProfile.class);
-        var downstreamResponse = userProfilesApi.createOrUpdateMyProfile(userId, downstreamRequest);
+        var downstreamResponse = userProfilesApi.createOrUpdateMyProfile(
+                "Bearer " + cleanToken(accessToken), downstreamRequest);
         UserProfile savedProfile = objectMapper.convertValue(downstreamResponse, UserProfile.class);
         log.info("user-profile-service save profile returned durationMs={}",
                 (System.nanoTime() - startedAt) / 1_000_000);

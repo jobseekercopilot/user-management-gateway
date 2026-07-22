@@ -1,6 +1,6 @@
 # User management path: beta-readiness workstream
 
-Audit date: 18 July 2026
+Audit date: 18 July 2026; progress evidence updated 22 July 2026
 
 Status: **Baseline prepared; not beta-ready.** No repository in this workstream
 may be described as beta-ready until every item in the Definition of Done is
@@ -27,10 +27,10 @@ AWS/Amplify and production deployment.
 
 ```mermaid
 flowchart TD
-    B[Browser / Angular] -->|same-origin /api| S[Express SSR / BFF]
-    S -->|register, login, profile + Bearer| U[User Management Gateway]
-    U -->|generated client: register/login/me| A[Authentication Service]
-    U -->|generated client: X-User-Id| P[User Profile Service]
+    B[Browser / Angular] -->|same-origin /api; cookie + CSRF| S[Express SSR / transparent proxy]
+    S -->|credentialed session requests; no token handling| U[User Management Gateway session boundary]
+    U -->|generated client: register/login/me/refresh/logout| A[Authentication Service]
+    U -->|end-user Bearer; profile validates independently| P[User Profile Service]
     S -->|postcode and advertised search| L[Location Gateway]
     L -->|generated client: postcode| G[Postcode.io Gateway]
     G -->|LIVE| E[api.postcodes.io]
@@ -39,7 +39,8 @@ flowchart TD
 
 Key corrections to the assumed diagram:
 
-- Express SSR is a runtime BFF between Angular and both public gateways.
+- Express SSR is a runtime same-origin proxy between Angular and both public
+  gateways; it must not read, store or invent authentication tokens.
 - Location is a separate client/BFF path; user-management-gateway does not call
   location-gateway.
 - `system-data-service` is an unapproved compile/runtime transitive dependency
@@ -67,11 +68,11 @@ Generated binary JARs are deliberately not committed.
 | Capability | State | Evidence/constraint |
 |---|---|---|
 | Registration | Partial | Auth account and profile are created synchronously; partial failure is not compensated. |
-| Login | Present | BCrypt comparison and signed access token; enumeration/rate controls absent. |
-| Logout | Client-only | Clears browser state; no server revocation. |
-| Token expiry | Present | 24-hour JWT expiry. |
-| Refresh/revocation | Absent | No refresh token, rotation, blacklist/session or logout endpoint. |
-| Profile create/read/update | Present | Gateway derives ID from JWT, downstream directly trusts `X-User-Id`. |
+| Login | Present | BCrypt comparison; UMG converts the short-lived access/refresh pair to HttpOnly cookies and rate-limits auth paths. |
+| Logout | Present | UMG revokes the authentication-service session and clears both cookies. |
+| Token expiry | Present | Short-lived RS256 access tokens with validated issuer/audience/type. |
+| Refresh/revocation | Present | Single-use rotation, replay response, logout revocation and bounded concurrent refresh coalescing. |
+| Profile create/read/update | Present | UMG forwards the end-user bearer server-to-server; profile-service independently validates it and derives `sub`. |
 | Password change/reset | Absent | Beta requirement/deferral must be decided. |
 | Account deletion/export | Absent | Privacy/retention decision required. |
 | Postcode lookup | Present | Full/outcode provider calls; error mapping/resilience incomplete. |
@@ -84,7 +85,7 @@ Generated binary JARs are deliberately not committed.
 | Repository | Build/test baseline | Secret baseline | Status |
 |---|---|---|---|
 | Client | 28 tests and current-tree production build pass; lint fails (76 errors); clean build blocked; npm audit reports 4 High and 3 Low chains | No confirmed client credential; local caches/generated output excluded | Blocked |
-| User-management gateway | UMG-01/03 are merged; UMG-09 adds a test-enforcing, digest-pinned, non-root, health-checked image and blocking image scan | No Gitleaks finding in legacy history | In remediation |
+| User-management gateway | UMG-01/03/04/05/06/08/09/10/11 repository controls are implemented; UMG-02/07 and final cross-service/browser evidence remain | No Gitleaks finding in legacy history | In remediation |
 | Authentication service | AUTH-01 is merged; JWT signing configuration is local-only, required and tested with the compromised value removed | No active signing secret is tracked | In remediation |
 | User-profile service | 22 tests pass | No legacy-history Gitleaks finding | Blocked |
 | Location gateway | 4 tests pass only with local untracked client JAR | No legacy-history Gitleaks finding | Blocked |
@@ -118,13 +119,14 @@ Critical/P0:
    `systemPath` JARs; UMG-01 removes this dependency for user-management-gateway.
 2. Authentication signing/public-history credentials require sanitisation and
    owner-controlled rotation.
-3. User-profile-service trusts a forgeable `X-User-Id` header.
+3. ~~User-profile-service trusts a forgeable `X-User-Id` header.~~ PROFILE-01
+   is merged; ownership now comes only from independently validated bearer `sub`.
 4. Postcode fixture mode depends on unapproved `system-data-service` tooling.
 
 High/P1 themes:
 
-- no refresh/revocation/logout design, weak password validation and no brute
-  force/account-enumeration controls;
+- browser adoption of the merged refresh/revocation/logout boundary and final
+  cross-service negative/security evidence remain;
 - partial registration remains; downstream calls now have bounded resilience;
 - development databases/consoles and automatic schema update;
 - missing location search, unstable error mapping and provider resilience;
