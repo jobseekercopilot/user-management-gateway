@@ -3,16 +3,26 @@ package com.jobseekercopilot.usermanagementgateway.controller;
 import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
+import com.jobseekercopilot.usermanagementgateway.model.SessionOutcome;
 import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry;
+import com.jobseekercopilot.usermanagementgateway.security.RefreshCoordinator;
+import com.jobseekercopilot.usermanagementgateway.security.SessionCookieService;
+import com.jobseekercopilot.usermanagementgateway.security.AuthenticationRateLimitFilter;
 import com.jobseekercopilot.usermanagementgateway.service.UserManagementService;
+import com.jobseekercopilot.usermanagementgateway.web.RequestBodySizeFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,17 +35,36 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserManagementController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @TestPropertySource(properties = "gateway.request.maximum-body-bytes=512")
 class ControllerValidationIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private WebApplicationContext context;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockBean
     private UserManagementService userManagementService;
 
     @MockBean
     private GatewayTelemetry telemetry;
+
+    @MockBean
+    private SessionCookieService sessionCookieService;
+
+    @MockBean
+    private RefreshCoordinator refreshCoordinator;
+
+    @MockBean
+    private AuthenticationRateLimitFilter authenticationRateLimitFilter;
+
+    @MockBean
+    private CsrfTokenRepository csrfTokens;
 
     @Test
     void rejectsShortPasswordWithVersionedFieldError() throws Exception {
@@ -55,7 +84,8 @@ class ControllerValidationIntegrationTest {
 
     @Test
     void acceptsFifteenUnicodeCodePointsAndNormalizesIdentityWhitespace() throws Exception {
-        when(userManagementService.register(any())).thenReturn(new GatewayResponse(201, true, "Registered"));
+        when(userManagementService.registerSession(any())).thenReturn(SessionOutcome.failure(
+                new GatewayResponse(201, true, "Registered")));
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -65,7 +95,7 @@ class ControllerValidationIntegrationTest {
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<RegisterRequest> request = ArgumentCaptor.forClass(RegisterRequest.class);
-        verify(userManagementService).register(request.capture());
+        verify(userManagementService).registerSession(request.capture());
         assertEquals("Example User", request.getValue().getName());
         assertEquals("user@example.test", request.getValue().getEmail());
     }
@@ -88,7 +118,8 @@ class ControllerValidationIntegrationTest {
 
     @Test
     void normalizesLoginEmailWithoutChangingPassword() throws Exception {
-        when(userManagementService.login(any())).thenReturn(new GatewayResponse(200, true, "Logged in"));
+        when(userManagementService.loginSession(any())).thenReturn(SessionOutcome.failure(
+                new GatewayResponse(200, true, "Logged in")));
         String password = "  A legacy passphrase  ";
 
         mockMvc.perform(post("/api/auth/login")
@@ -99,7 +130,7 @@ class ControllerValidationIntegrationTest {
                 .andExpect(status().isOk());
 
         ArgumentCaptor<LoginRequest> request = ArgumentCaptor.forClass(LoginRequest.class);
-        verify(userManagementService).login(request.capture());
+        verify(userManagementService).loginSession(request.capture());
         assertEquals("user@example.test", request.getValue().getEmail());
         assertEquals(password, request.getValue().getPassword());
     }
@@ -140,7 +171,10 @@ class ControllerValidationIntegrationTest {
     void rejectsDeclaredBodyAboveConfiguredLimit() throws Exception {
         String body = "x".repeat(513);
 
-        mockMvc.perform(post("/api/auth/login")
+        MockMvc sizeLimitedMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(new RequestBodySizeFilter(512, objectMapper))
+                .build();
+        sizeLimitedMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isPayloadTooLarge())
@@ -150,7 +184,8 @@ class ControllerValidationIntegrationTest {
 
     @Test
     void hidesUnexpectedExceptionDetails() throws Exception {
-        when(userManagementService.login(any())).thenThrow(new IllegalStateException("sensitive implementation detail"));
+        when(userManagementService.loginSession(any()))
+                .thenThrow(new IllegalStateException("sensitive implementation detail"));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -45,7 +45,7 @@ class UserManagementServiceTest {
         ));
 
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
-                .token("jwt-token");
+                .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
                 .id("user-123").name("John Doe").email("john@test.com");
         UserProfile profile = new UserProfile(
@@ -58,7 +58,7 @@ class UserManagementServiceTest {
 
         when(authenticationApi.login(any())).thenReturn(loginResponse);
         when(authenticationApi.getCurrentUser("Bearer jwt-token")).thenReturn(accountResponse);
-        when(userProfilesApi.createOrUpdateMyProfile(eq("user-123"), any()))
+        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer jwt-token"), any()))
                 .thenReturn(downstreamProfile(profile));
 
         GatewayResponse response = userManagementService.register(request);
@@ -66,7 +66,6 @@ class UserManagementServiceTest {
         assertTrue(response.isSuccess(), response.getMessage());
         assertEquals(201, response.getStatusCode());
         assertNotNull(response.getUser());
-        assertEquals("jwt-token", response.getUser().getToken());
     }
 
     @Test
@@ -88,7 +87,7 @@ class UserManagementServiceTest {
         request.setPassword("A valid local passphrase 2026!");
 
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
-                .token("jwt-token");
+                .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
                 .id("user-123").name("John Doe").email("john@test.com");
         UserProfile profile = new UserProfile(
@@ -101,7 +100,7 @@ class UserManagementServiceTest {
 
         when(authenticationApi.login(any())).thenReturn(loginResponse);
         when(authenticationApi.getCurrentUser("Bearer jwt-token")).thenReturn(accountResponse);
-        when(userProfilesApi.getMyProfile("user-123")).thenReturn(downstreamProfile(profile));
+        when(userProfilesApi.getMyProfile("Bearer jwt-token")).thenReturn(downstreamProfile(profile));
 
         GatewayResponse response = userManagementService.login(request);
 
@@ -175,12 +174,12 @@ class UserManagementServiceTest {
         request.setEmail("john@test.com");
         request.setPassword("A valid local passphrase 2026!");
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
-                .token("jwt-token");
+                .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
                 .id("user-123").name("John Doe").email("john@test.com");
         when(authenticationApi.login(any())).thenReturn(loginResponse);
         when(authenticationApi.getCurrentUser("Bearer jwt-token")).thenReturn(accountResponse);
-        when(userProfilesApi.createOrUpdateMyProfile(eq("user-123"), any()))
+        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer jwt-token"), any()))
                 .thenThrow(new ResourceAccessException("profile unavailable"));
 
         GatewayResponse response = userManagementService.register(request);
@@ -204,7 +203,7 @@ class UserManagementServiceTest {
         );
 
         when(authenticationApi.getCurrentUser("Bearer " + token)).thenReturn(accountResponse);
-        when(userProfilesApi.getMyProfile("user-123")).thenReturn(downstreamProfile(profile));
+        when(userProfilesApi.getMyProfile("Bearer valid-token")).thenReturn(downstreamProfile(profile));
 
         GatewayResponse response = userManagementService.getProfile(token);
 
@@ -235,7 +234,7 @@ class UserManagementServiceTest {
                 .id("user-123").name("John Doe").email("john@test.com");
 
         when(authenticationApi.getCurrentUser("Bearer " + token)).thenReturn(accountResponse);
-        when(userProfilesApi.createOrUpdateMyProfile(eq("user-123"), any()))
+        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer valid-token"), any()))
                 .thenReturn(downstreamProfile(profile));
 
         GatewayResponse response = userManagementService.updateProfile(profile, token);

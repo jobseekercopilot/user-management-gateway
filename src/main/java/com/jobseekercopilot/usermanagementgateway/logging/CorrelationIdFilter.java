@@ -12,13 +12,17 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
     public static final String HEADER_NAME = "X-Correlation-Id";
+    public static final String REQUEST_ATTRIBUTE = CorrelationIdFilter.class.getName() + ".correlationId";
     public static final String MDC_KEY = "correlationId";
     public static final String SERVICE_MDC_KEY = "serviceName";
 
@@ -47,6 +51,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         long startedAt = System.nanoTime();
         MDC.put(MDC_KEY, correlationId);
         MDC.put(SERVICE_MDC_KEY, serviceName);
+        request.setAttribute(REQUEST_ATTRIBUTE, correlationId);
         response.setHeader(HEADER_NAME, correlationId);
 
         try {

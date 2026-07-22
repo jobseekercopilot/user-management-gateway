@@ -6,7 +6,8 @@ does not own location lookup.
 
 > Beta status: not beta-ready. UMG-01 makes the gateway build reproducibly and
 > UMG-03 bounds downstream calls, UMG-04 validates requests and returns safe
-> errors, and UMG-09 hardens the runtime image, but the
+> errors, UMG-05 establishes the browser session boundary, and UMG-09 hardens
+> the runtime image, but the
 > remaining beta-readiness findings are still open. See
 > [the audit](docs/BETA_READINESS_AUDIT.md) and
 > [workstream summary](docs/USER_MANAGEMENT_BETA_READINESS.md).
@@ -33,16 +34,21 @@ correlation propagation, dashboard panels and initial alert thresholds.
 
 | Method | Path | Authentication | Purpose |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | None | Create an account and initial profile, then return the user and token |
-| `POST` | `/api/auth/login` | None | Authenticate and return the user, profile and token |
-| `GET` | `/api/auth/profile` | `Authorization: Bearer <token>` | Read the current user's profile |
-| `PUT` | `/api/auth/profile` | `Authorization: Bearer <token>` | Replace the current user's profile |
+| `GET` | `/api/auth/csrf` | None | Bootstrap the readable CSRF cookie and return its header/token pair |
+| `POST` | `/api/auth/register` | CSRF | Create an account/profile and establish an HttpOnly cookie session |
+| `POST` | `/api/auth/login` | CSRF | Authenticate and establish an HttpOnly cookie session |
+| `POST` | `/api/auth/refresh` | Refresh cookie + CSRF | Rotate access and refresh cookies |
+| `POST` | `/api/auth/logout` | Access cookie + CSRF | Revoke and clear the browser session |
+| `GET` | `/api/auth/profile` | Access cookie | Read the current user's profile |
+| `PUT` | `/api/auth/profile` | Access cookie + CSRF | Replace the current user's profile |
 
 The complete payload fields, examples and response envelope are in the
 [API reference](docs/API.md). Runtime OpenAPI is available at `/v3/api-docs`
-and Swagger UI at `/swagger-ui/index.html`. Profile operations use the
-`bearerAuth` security scheme and derive ownership from the authenticated token;
-there is no email or user-ID selector.
+and Swagger UI at `/swagger-ui/index.html` outside the production profile.
+Profile operations use the `browserSession` cookie scheme and derive ownership
+from the server-held access token; there is no email or user-ID selector.
+Browser JavaScript never receives an access or refresh token and must send
+credentialed requests plus the CSRF header returned by the bootstrap route.
 
 ## Configuration
 
@@ -53,6 +59,19 @@ there is no email or user-ID selector.
 | `AUTHENTICATION_SERVICE_TOKEN` | none; required | Minimum 32-byte service identity shared only with authentication-service |
 | `USER_PROFILE_SERVICE_URL` | `http://localhost:8085` | Profile API |
 | `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES` | `65536` | Positive maximum request-body size for write routes |
+| `GATEWAY_ACCESS_COOKIE_NAME` | `jsc-access-local` | Local HTTP access-cookie name; production fixes the `__Host-` name |
+| `GATEWAY_REFRESH_COOKIE_NAME` | `jsc-refresh-local` | Local HTTP refresh-cookie name; production fixes the `__Host-` name |
+| `GATEWAY_CSRF_COOKIE_NAME` | `jsc-csrf-local` | Local readable CSRF-cookie name; production fixes the `__Host-` name |
+| `GATEWAY_SECURE_COOKIES` | `false` | Local HTTP only; production forces `true` |
+| `GATEWAY_ALLOWED_ORIGINS` | `http://localhost:4200` | Exact credentialed browser origins; wildcards are rejected |
+| `GATEWAY_ACCESS_MAXIMUM_SECONDS` | `900` | Maximum access-cookie lifetime |
+| `GATEWAY_REFRESH_MAXIMUM_SECONDS` | `604800` | Refresh-cookie lifetime |
+| `GATEWAY_REFRESH_CONCURRENCY_SECONDS` | `5` | Same-token refresh coalescing window |
+| `GATEWAY_REFRESH_CONCURRENCY_MAXIMUM` | `1000` | Maximum bounded refresh entries |
+| `GATEWAY_AUTH_RATE_MAXIMUM` | `20` | Authentication requests per direct peer/window |
+| `GATEWAY_AUTH_RATE_GLOBAL_MAXIMUM` | `1000` | Authentication requests globally/window |
+| `GATEWAY_AUTH_RATE_WINDOW_SECONDS` | `60` | Authentication rate-limit window |
+| `GATEWAY_AUTH_RATE_MAXIMUM_CLIENTS` | `10000` | Maximum bounded direct-peer counters |
 | `DOWNSTREAM_CONNECT_TIMEOUT_MS` | `500` | Connection deadline for each downstream call |
 | `DOWNSTREAM_READ_TIMEOUT_MS` | `2000` | Response-read deadline for each downstream call |
 | `DOWNSTREAM_RETRY_MAX_ATTEMPTS` | `2` | Maximum attempts for idempotent `GET` calls; `POST` is always attempted once |
@@ -66,7 +85,7 @@ fails. `AUTHENTICATION_SERVICE_TOKEN` must contain at least 32 bytes; the
 gateway injects it only into its server-side authentication-service client and
 replaces any same-named inbound value. Supply the identical value to
 authentication-service through the runtime secret manager. This service has no
-JWT signing key or database credential of its own. Bearer tokens and downstream
+JWT signing key or database credential of its own. Session cookies, bearer tokens and downstream
 secrets must never be committed or placed in command-line arguments, URLs or
 logs.
 

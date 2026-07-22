@@ -4,14 +4,14 @@ info:
   version: 1.0.0
   description: Consumer contract used by user-management-gateway.
 x-source-repository: jobseekercopilot/user-profile-service
-x-source-revision: 55f37006dc362b7237b44199cc10cce7a1f504d0
+x-source-revision: 0248daa48e62e0c1976c89bf86f745ea3ca66a1b
 paths:
   /api/profiles/me:
     get:
       tags: [User Profiles]
       operationId: getMyProfile
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Authorization'
       responses:
         '200':
           description: Current profile
@@ -25,7 +25,7 @@ paths:
       tags: [User Profiles]
       operationId: createOrUpdateMyProfile
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Authorization'
       requestBody:
         required: true
         content:
@@ -43,8 +43,8 @@ paths:
           description: Invalid profile
 components:
   parameters:
-    UserId:
-      name: X-User-Id
+    Authorization:
+      name: Authorization
       in: header
       required: true
       schema:

@@ -19,12 +19,18 @@ public class OpenApiConfig {
                         .title("Jobseeker Copilot - User Management Gateway API")
                         .description("Gateway API for user registration, authentication, and profile management. Orchestrates calls to authentication-service and user-profile-service.")
                         .version("1.0.0"))
-                .components(new Components().addSecuritySchemes("bearerAuth",
+                .components(new Components().addSecuritySchemes("browserSession",
                         new SecurityScheme()
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")
-                                .description("JWT returned by register or login; profile ownership is derived server-side.")))
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.COOKIE)
+                                .name("__Host-jsc-access")
+                                .description("HttpOnly browser session cookie set by the gateway; browser JavaScript cannot read it."))
+                        .addSecuritySchemes("browserRefresh",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.COOKIE)
+                                        .name("__Host-jsc-refresh")
+                                        .description("HttpOnly rotating refresh cookie set by the gateway.")))
                 .tags(List.of(
                         new Tag().name("Authentication").description("User registration and login endpoints"),
                         new Tag().name("Profile").description("User profile retrieval and update operations")

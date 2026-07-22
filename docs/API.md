@@ -12,14 +12,14 @@ this envelope:
     "id": "user-id",
     "name": "Example User",
     "email": "user@example.invalid",
-    "profile": {},
-    "token": "<JWT returned only by register and login>"
+    "profile": {}
   }
 }
 ```
 
-`user` is omitted on failures. `token` is omitted from profile read/update
-responses. Callers must use the HTTP status, not only the duplicated
+`user` is omitted on failures. Access and refresh tokens are never present in
+JSON; the gateway stores them in separate HttpOnly browser cookies. Callers
+must use the HTTP status, not only the duplicated
 `statusCode` field. Downstream client errors retain their HTTP status; an
 unavailable or 5xx downstream returns `503`. Failures also include a stable,
 versioned error object, for example:
@@ -43,6 +43,17 @@ versioned error object, for example:
 Errors never include rejected values, passwords, downstream response bodies or
 exception causes. Malformed JSON, unsupported media types and oversized bodies
 use `MALFORMED_JSON`, `UNSUPPORTED_MEDIA_TYPE` and `PAYLOAD_TOO_LARGE`.
+
+## Browser session and CSRF
+
+Begin with `GET /api/auth/csrf`. It sets a readable `SameSite=Lax` CSRF cookie
+and returns the random value plus the response's canonical header name. Echo
+that value in the named header on every `POST`, `PUT` or `PATCH` request and
+send requests with browser credentials enabled. Login and registration set
+separate HttpOnly access and rotating refresh cookies. Browser code must not
+send an `Authorization` or user-ID header; those headers have no public
+authority. Missing/mismatched CSRF returns stable `403`; a missing/invalid
+session returns stable `401`.
 
 ## Register
 
@@ -81,6 +92,7 @@ qualifications and roles. Success is `201`. Names are trimmed and contain 1–10
 Unicode code points. Emails are trimmed, syntactically valid and at most 254
 code points. New passwords contain 15–128 Unicode code points and are forwarded
 exactly as supplied; whitespace is never trimmed or otherwise changed.
+Success also establishes the cookie session without returning either token.
 Registration is not yet atomic: a later profile failure can leave the account
 created, as tracked in UMG-02.
 
@@ -95,7 +107,8 @@ created, as tracked in UMG-02.
 }
 ```
 
-Success is `200` and includes the user, profile and token. A missing profile is
+Success is `200`, establishes the cookie session and includes the user/profile
+without tokens. A missing profile is
 represented with empty skills, qualifications and roles; login does not create
 it. Login preserves passwords exactly and accepts legacy account passwords up
 to 128 Unicode code points; authentication-service remains responsible for
@@ -103,18 +116,18 @@ credential verification.
 
 ## Read the current profile
 
-`GET /api/auth/profile` requires `Authorization: Bearer <token>`. The gateway
-asks authentication-service to derive the user ID from the token, then reads
-that ID's profile. If no profile exists it creates an empty one. Success is
-`200`; the response user does not contain a token.
+`GET /api/auth/profile` requires the access cookie. The gateway asks
+authentication-service to validate the server-held token and derive the user
+ID, then reads that ID's profile. If no profile exists it creates an empty one.
+Success is `200`.
 
 The route has no email or user-ID selector. Its OpenAPI operation declares the
-HTTP `bearerAuth` scheme; the raw `Authorization` header is not duplicated as
-an optional generated-client parameter.
+cookie `browserSession` scheme; neither an authorization header nor a cookie
+value is exposed as a normal JavaScript-managed parameter.
 
 ## Update the current profile
 
-`PUT /api/auth/profile` requires the same bearer header and a profile body:
+`PUT /api/auth/profile` requires the access cookie, CSRF header and a profile body:
 
 ```json
 {
@@ -167,6 +180,18 @@ default. Operators can set the positive `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES`
 runtime value. A missing/unsupported JSON content type is rejected before any
 downstream call.
 
+## Refresh and logout
+
+`POST /api/auth/refresh` requires the refresh cookie and CSRF header. Success
+rotates both HttpOnly cookies. Concurrent requests carrying the same old token
+are coalesced inside one gateway instance; an expired/replayed session clears
+the cookies and returns `401`.
+
+`POST /api/auth/logout` requires the access cookie and CSRF header. The gateway
+asks authentication-service to revoke the session and always expires the local
+access/refresh cookies. A dependency failure is reported accurately rather
+than claiming remote revocation.
+
 ## Machine-readable contracts
 
 - Gateway OpenAPI: `GET /v3/api-docs` while the application is running, or
@@ -175,8 +200,8 @@ downstream call.
   and `src/main/openapi/user-profile-service.yaml`.
 - Downstream contract update process: `src/main/openapi/README.md`.
 
-Examples deliberately use reserved/example values and token placeholders.
-Never paste a real password or complete JWT into documentation, issues, shell
+Examples deliberately use reserved/example values. Never paste a real
+password, cookie or complete JWT into documentation, issues, shell
 history, URLs or logs.
 
 Unknown JSON request properties are rejected with the stable version 1 error

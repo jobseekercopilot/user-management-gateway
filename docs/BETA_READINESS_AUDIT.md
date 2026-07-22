@@ -25,8 +25,8 @@ beta-ready** while the other findings below are open.
 | [UMG-02](https://github.com/jobseekercopilot/user-management-gateway/issues/2) | Make registration failure-safe and retryable | `UserManagementService.register` creates auth account, logs in, loads `/me`, then writes profile with no compensation/idempotency. | **High / P1 reliability/data:** profile failure leaves a valid account while the client receives 500; retry becomes duplicate registration. | Define an idempotency key/state machine or compensation; return stable outcomes; test every partial failure and retry. | Authentication/profile API changes. | Yes | L |
 | [UMG-03](https://github.com/jobseekercopilot/user-management-gateway/issues/3) | Add bounded downstream resilience | Generated clients have no configured connect/read deadlines, retry budget, circuit breaker or bulkhead. | **High / P1 reliability:** a synchronous chain can exhaust gateway resources and amplify outages. | Add per-operation timeouts, safe retry rules, circuit breaking and dependency readiness; test slow, unavailable and partial downstreams. | Generated-client configuration. | Yes | M |
 | [UMG-04](https://github.com/jobseekercopilot/user-management-gateway/issues/4) | Enforce contract validation and safe errors | **Remediated:** Bean Validation covers request/nested DTO boundaries; bodies and media types are bounded; failures use a versioned safe schema. | **High / P1 security/API, mitigated:** malformed input and internal details no longer reach downstreams or clients. | Keep the error schema backward compatible and align constraints when downstream contracts change. | AUTH-02 complete. | No | M |
-| [UMG-05](https://github.com/jobseekercopilot/user-management-gateway/issues/5) | Establish the public gateway security baseline | No security filter chain, rate limiting, explicit CORS policy or security headers exist; auth is manual per profile method. | **High / P1 security:** brute force and future accidental endpoint exposure are unbounded. | Deny by default, explicitly permit register/login/health, authenticate protected routes, define CORS and headers, rate-limit auth paths and add security tests. | Agreed browser/session design. | Yes | L |
-| [UMG-06](https://github.com/jobseekercopilot/user-management-gateway/issues/6) | Make OpenAPI express real authentication and ownership | **Remediated:** protected profile operations use an HTTP bearer scheme, ownership selectors/dead parameters are absent, stable error envelopes are documented, and unknown request fields fail closed. | The public generated contract now matches current ownership behavior; UMG-05 still owns runtime deny-by-default authentication policy. | Retain OpenAPI/unknown-field contract tests and coordinate reviewed public schema changes with consumers. | UMG-01 complete. | No | M |
+| [UMG-05](https://github.com/jobseekercopilot/user-management-gateway/issues/5) | Establish the public gateway security baseline | **Remediated:** UMG is the cookie session boundary with deny-by-default routing, CSRF, exact credentialed origins, bounded auth rates and safe security headers/errors. | **High / P1 security, mitigated in repository:** browser token custody, brute force and accidental route exposure now have explicit controls; deployment TLS/proxy and multi-instance coordination remain platform validation. | Retain negative security/configuration tests and validate the documented production profile before beta deployment. | AUTH-13 and PROFILE-01 complete; CLIENT-02/03 must adopt the contract. | No | L |
+| [UMG-06](https://github.com/jobseekercopilot/user-management-gateway/issues/6) | Make OpenAPI express real authentication and ownership | **Remediated:** protected operations use HttpOnly cookie schemes, ownership selectors/dead parameters and token response fields are absent, stable error envelopes are documented, and unknown request fields fail closed. | The public generated contract matches the UMG-05 browser boundary. | Retain OpenAPI/unknown-field contract tests and coordinate reviewed public schema changes with consumers. | UMG-01 and UMG-05 complete. | No | M |
 | [UMG-07](https://github.com/jobseekercopilot/user-management-gateway/issues/7) | Add real integration and negative security tests | Existing service tests mock generated APIs; there is no multi-service registration/profile test, cross-user test, timeout test or browser path. | **High / P1 testing:** orchestration and ownership guarantees are unproven. | Add container/fixture integration plus contract tests covering success, duplicates, invalid/expired token, cross-user access and partial failures. | AUTH/PROFILE test fixtures. | Yes | L |
 | [UMG-08](https://github.com/jobseekercopilot/user-management-gateway/issues/8) | Add service-level telemetry and readiness | **Remediated:** bounded operation/auth outcome metrics and latency histograms, redacted aggregate health, dependency readiness, safe correlation validation/propagation tests, and a dashboard/alert contract are present. A production exporter and alert routing remain platform-owned. | **Medium / P1 observability:** repository controls are complete; target-environment alert delivery remains a beta-readiness validation item. | Connect the vendor-neutral meter registry to the approved private platform and prove dashboard/alert delivery in the beta environment. | Monitoring platform owner; no paid or production change is made here. | Yes | M |
 | [UMG-09](https://github.com/jobseekercopilot/user-management-gateway/issues/9) | Harden the container and stop skipping tests | Docker runs `mvn ... -DskipTests`, uses mutable/root images and has no health check; before UMG-01 it also copied `libs`. | **Medium / P1 devops:** the image still bypasses verification and lacks a hardened runtime baseline. | Run verify in CI/build, pin images, use non-root runtime, health check and image scan. | UMG-01. | Yes | M |
@@ -35,15 +35,40 @@ beta-ready** while the other findings below are open.
 
 ## UMG-06 remediation evidence
 
-- Runtime OpenAPI defines `bearerAuth` as HTTP bearer/JWT only on profile read
-  and update; register/login remain public.
+- Runtime OpenAPI defines HttpOnly `browserSession`/`browserRefresh` cookie
+  schemes; CSRF bootstrap/register/login remain unauthenticated but write
+  routes still require CSRF.
 - Ignored email selectors are removed and the raw authorization header is
   hidden from generated parameters. Ownership is described as server-derived.
 - All documented failure statuses reference the versioned `GatewayResponse` /
   `ApiError` envelope and tests assert its stable schema fields.
 - Unknown JSON properties fail before service calls instead of being silently
   discarded. Public/downstream DTO ownership and compatibility steps are
-  documented without claiming UMG-05 runtime security completion.
+  documented and contract-tested with the UMG-05 runtime boundary.
+
+## UMG-05 remediation evidence
+
+- Browser responses never contain access/refresh tokens; HttpOnly, SameSite
+  cookies are Secure `__Host-` cookies in the production profile and use an
+  explicit separate localhost-only HTTP configuration.
+- Every state-changing route requires a random double-submit CSRF value.
+  Missing/mismatched values use a stable redacted `403` response.
+- Protected profile identity comes only from the access cookie. Browser
+  `Authorization` and `X-User-Id` headers have no authority; the end-user
+  bearer is forwarded only server-to-server and profile-service validates it.
+- CORS permits configured exact origins with credentials; wildcard/malformed
+  origins and invalid cookie/rate bounds fail startup.
+- Register/login/refresh have bounded direct-peer and global rate limits with
+  stable `429`/`Retry-After`; forwarded addresses are not trusted.
+- Refresh rotation is coalesced by a bounded, expiring digest-keyed in-memory
+  result. Multi-instance deployment requires approved shared coordination.
+- Security integration tests cover CSRF, cookie flags, token non-exposure,
+  header forgery, invalid sessions, rotation/failure, logout, CORS and headers.
+- An isolated local run against merged authentication-service and
+  user-profile-service revisions exercised registration, profile ownership,
+  refresh rotation, logout and post-logout rejection. UMG-07 still owns making
+  that cross-service/browser evidence repeatable in the existing project E2E
+  automation and CI.
 
 ## UMG-01 remediation evidence
 

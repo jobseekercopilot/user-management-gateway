@@ -41,7 +41,7 @@ class WebEndpointSmokeTest {
     @Test
     void actuatorMetricsAreNotPubliclyExposed() throws Exception {
         mockMvc.perform(get("/actuator/metrics"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

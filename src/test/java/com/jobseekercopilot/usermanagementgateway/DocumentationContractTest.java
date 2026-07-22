@@ -22,8 +22,11 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
         "authentication.service.token=test-only-authentication-service-token-32-bytes")
 class DocumentationContractTest {
     private static final Set<String> DOCUMENTED_ROUTES = Set.of(
+            "GET /api/auth/csrf",
             "GET /api/auth/profile",
             "POST /api/auth/login",
+            "POST /api/auth/logout",
+            "POST /api/auth/refresh",
             "POST /api/auth/register",
             "PUT /api/auth/profile");
 
@@ -37,6 +40,20 @@ class DocumentationContractTest {
             Map.entry("DOWNSTREAM_CONNECT_TIMEOUT_MS", "${DOWNSTREAM_CONNECT_TIMEOUT_MS"),
             Map.entry("DOWNSTREAM_READ_TIMEOUT_MS", "${DOWNSTREAM_READ_TIMEOUT_MS"),
             Map.entry("DOWNSTREAM_RETRY_MAX_ATTEMPTS", "${DOWNSTREAM_RETRY_MAX_ATTEMPTS"),
+            Map.entry("GATEWAY_ACCESS_COOKIE_NAME", "${GATEWAY_ACCESS_COOKIE_NAME"),
+            Map.entry("GATEWAY_ACCESS_MAXIMUM_SECONDS", "${GATEWAY_ACCESS_MAXIMUM_SECONDS"),
+            Map.entry("GATEWAY_ALLOWED_ORIGINS", "${GATEWAY_ALLOWED_ORIGINS"),
+            Map.entry("GATEWAY_AUTH_RATE_GLOBAL_MAXIMUM", "${GATEWAY_AUTH_RATE_GLOBAL_MAXIMUM"),
+            Map.entry("GATEWAY_AUTH_RATE_MAXIMUM", "${GATEWAY_AUTH_RATE_MAXIMUM"),
+            Map.entry("GATEWAY_AUTH_RATE_MAXIMUM_CLIENTS", "${GATEWAY_AUTH_RATE_MAXIMUM_CLIENTS"),
+            Map.entry("GATEWAY_AUTH_RATE_WINDOW_SECONDS", "${GATEWAY_AUTH_RATE_WINDOW_SECONDS"),
+            Map.entry("GATEWAY_CSRF_COOKIE_NAME", "${GATEWAY_CSRF_COOKIE_NAME"),
+            Map.entry("GATEWAY_REFRESH_CONCURRENCY_MAXIMUM", "${GATEWAY_REFRESH_CONCURRENCY_MAXIMUM"),
+            Map.entry("GATEWAY_REFRESH_CONCURRENCY_SECONDS", "${GATEWAY_REFRESH_CONCURRENCY_SECONDS"),
+            Map.entry("GATEWAY_REFRESH_COOKIE_NAME", "${GATEWAY_REFRESH_COOKIE_NAME"),
+            Map.entry("GATEWAY_REFRESH_MAXIMUM_SECONDS", "${GATEWAY_REFRESH_MAXIMUM_SECONDS"),
+            Map.entry("GATEWAY_REQUEST_MAXIMUM_BODY_BYTES", "${GATEWAY_REQUEST_MAXIMUM_BODY_BYTES"),
+            Map.entry("GATEWAY_SECURE_COOKIES", "${GATEWAY_SECURE_COOKIES"),
             Map.entry("SERVER_PORT", "server.port=8083"),
             Map.entry("USER_PROFILE_SERVICE_URL", "${USER_PROFILE_SERVICE_URL"));
 

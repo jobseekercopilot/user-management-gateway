@@ -12,6 +12,15 @@ arrange rotation with the owner.
 The current code is a beta-readiness baseline, not a security certification.
 Known risks and beta blockers are tracked in `docs/BETA_READINESS_AUDIT.md`.
 
+The gateway is the browser session boundary. It returns no access or refresh
+token to JavaScript, accepts no browser-selected identity header, requires CSRF
+on every state-changing route, and permits credentialed CORS only for exact
+configured origins. The production profile requires Secure `__Host-` cookies
+and HTTPS origins and disables API documentation. Do not weaken these controls,
+log cookie/token values, or enable the localhost HTTP defaults in production.
+See `docs/adr/0001-browser-session-boundary.md` for the accepted boundary and
+its remaining platform assumptions.
+
 Dependency vulnerability reports are generated for every push and pull request.
 Critical and High findings block the build unless the repository owner approves
 a narrow, issue-linked exception with an expiry of no more than 30 days. See
