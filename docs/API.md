@@ -1,5 +1,9 @@
 # User Management Gateway API
 
+This reference describes public contract `2.0.0`. It replaces the incompatible
+1.x browser bearer-token contract; see the
+[OpenAPI contract policy](OPENAPI_CONTRACT.md) for migration and pinning rules.
+
 The gateway listens on `http://localhost:8083` by default. JSON responses use
 this envelope:
 
