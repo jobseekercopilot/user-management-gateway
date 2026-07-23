@@ -66,6 +66,11 @@ class OpenApiExportTest {
         assertTrue(root.at("/components/schemas/ApiError/properties/schemaVersion").isObject());
         assertTrue(root.at("/components/schemas/ApiError/properties/code").isObject());
         assertTrue(root.at("/components/schemas/FieldViolation/properties/field").isObject());
+        assertStringConstraint(root, "RegisterRequest", "name", 1, 100, null, "Unicode code points");
+        assertStringConstraint(root, "RegisterRequest", "email", 1, 254, "email", "Unicode code points");
+        assertStringConstraint(root, "RegisterRequest", "password", 15, 128, "password", "exactly");
+        assertStringConstraint(root, "LoginRequest", "email", 1, 254, "email", "Unicode code points");
+        assertStringConstraint(root, "LoginRequest", "password", 1, 128, "password", "exactly");
 
         for (String schema : List.of("RegisterRequest", "LoginRequest", "UserProfile",
                 "Aspirations", "WorkPreferences", "PostcodeLocation", "Qualification", "Role")) {
@@ -74,6 +79,26 @@ class OpenApiExportTest {
             assertTrue(additionalProperties.isBoolean(), schema);
             assertFalse(additionalProperties.asBoolean(), schema);
         }
+    }
+
+    private void assertStringConstraint(
+            JsonNode root,
+            String schema,
+            String property,
+            int minimum,
+            int maximum,
+            String format,
+            String descriptionFragment) {
+        JsonNode field = root.at("/components/schemas/" + schema + "/properties/" + property);
+        assertEquals("string", field.path("type").asText(), schema + "." + property);
+        assertEquals(minimum, field.path("minLength").asInt(), schema + "." + property);
+        assertEquals(maximum, field.path("maxLength").asInt(), schema + "." + property);
+        if (format != null) {
+            assertEquals(format, field.path("format").asText(), schema + "." + property);
+        }
+        assertTrue(
+                field.path("description").asText().contains(descriptionFragment),
+                schema + "." + property + " description");
     }
 
     private void assertProtectedProfileOperation(JsonNode operation, String... responses) {

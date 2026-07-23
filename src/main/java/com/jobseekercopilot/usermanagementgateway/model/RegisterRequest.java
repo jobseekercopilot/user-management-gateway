@@ -16,13 +16,27 @@ import com.jobseekercopilot.usermanagementgateway.validation.UnicodeLength;
 public class RegisterRequest {
     @NotNull
     @UnicodeLength(min = 1, max = 100)
+    @Schema(
+            minLength = 1,
+            maxLength = 100,
+            description = "Display name after trimming, measured in Unicode code points.")
     private String name;
     @NotBlank
     @Email
     @UnicodeLength(max = 254)
+    @Schema(
+            minLength = 1,
+            maxLength = 254,
+            format = "email",
+            description = "Email identity after trimming, measured in Unicode code points.")
     private String email;
     @NotNull
     @UnicodeLength(min = 15, max = 128)
+    @Schema(
+            minLength = 15,
+            maxLength = 128,
+            format = "password",
+            description = "New password measured in Unicode code points and forwarded exactly as supplied.")
     private String password;
     @Valid
     private UserProfile profile;

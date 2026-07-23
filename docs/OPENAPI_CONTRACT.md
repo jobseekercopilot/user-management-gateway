@@ -39,3 +39,7 @@ owned boundary and must not be replaced silently by a downstream model.
 scheme shape, token-field absence, no dead email/raw-header parameters,
 required status codes and stable error-schema references. Controller tests
 prove unknown input fails before any downstream service call.
+The export assertions also pin the already-enforced registration/login name,
+email and password bounds. String lengths use Unicode code points; password
+descriptions state that the supplied value is forwarded exactly so consumers
+cannot silently trim or normalise a credential.

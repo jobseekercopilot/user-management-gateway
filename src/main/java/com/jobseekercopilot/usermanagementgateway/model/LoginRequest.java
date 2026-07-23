@@ -16,9 +16,19 @@ public class LoginRequest {
     @NotBlank
     @Email
     @UnicodeLength(max = 254)
+    @Schema(
+            minLength = 1,
+            maxLength = 254,
+            format = "email",
+            description = "Email identity after trimming, measured in Unicode code points.")
     private String email;
     @NotEmpty
     @UnicodeLength(max = 128)
+    @Schema(
+            minLength = 1,
+            maxLength = 128,
+            format = "password",
+            description = "Current password measured in Unicode code points and forwarded exactly as supplied.")
     private String password;
 
     public void setEmail(String email) { this.email = email == null ? null : email.trim(); }
