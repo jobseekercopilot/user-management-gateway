@@ -12,6 +12,10 @@ does not own location lookup.
 > [the audit](docs/BETA_READINESS_AUDIT.md) and
 > [workstream summary](docs/USER_MANAGEMENT_BETA_READINESS.md).
 
+The User Management session and token-contract boundary consumed by Job Search
+is defined in the Infrastructure
+[Job Search architecture ADR](https://github.com/jobseekercopilot/infrastructure/blob/develop/docs/adr/0001-job-search-architecture-and-ownership.md).
+
 ## Start here
 
 Requirements: Java 17, Maven 3.9, and Docker when verifying the container.
