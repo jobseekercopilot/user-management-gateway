@@ -12,6 +12,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -19,7 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "authentication.service.token=test-only-authentication-service-token-32-bytes",
         "gateway.security.auth-rate-maximum=1",
-        "gateway.security.auth-rate-global-maximum=10"
+        "gateway.security.auth-rate-global-maximum=10",
+        "gateway.security.auth-rate-window-seconds=60"
 })
 @AutoConfigureMockMvc
 class GatewayRateLimitIntegrationTest {
@@ -43,9 +46,15 @@ class GatewayRateLimitIntegrationTest {
         mockMvc.perform(post("/api/auth/login")
                         .header("X-Forwarded-For", "198.51.100.200")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                .content("{}"))
                 .andExpect(status().isTooManyRequests())
-                .andExpect(header().string("Retry-After", "60"))
+                .andExpect(result -> {
+                    String retryAfter = result.getResponse().getHeader("Retry-After");
+                    assertNotNull(retryAfter);
+                    long seconds = Long.parseLong(retryAfter);
+                    assertTrue(seconds >= 1 && seconds <= 60,
+                            () -> "Retry-After must be within the configured 1-60 second window");
+                })
                 .andExpect(jsonPath("$.error.code").value("TOO_MANY_AUTHENTICATION_ATTEMPTS"))
                 .andExpect(content().string(not(containsString("198.51.100.200"))));
 

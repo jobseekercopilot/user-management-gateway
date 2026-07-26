@@ -125,8 +125,10 @@ synthetic test values are not deployment credentials.
   do not add browser bearer headers or inspect HttpOnly cookie values.
 - `403` with `REQUEST_FORBIDDEN`: bootstrap `GET /api/auth/csrf`, echo its
   returned token under its returned header name, and include credentials.
-- `429` with `TOO_MANY_AUTHENTICATION_ATTEMPTS`: respect `Retry-After`; do not
-  disable or bypass the rate gate.
+- `429` with `TOO_MANY_AUTHENTICATION_ATTEMPTS`: respect `Retry-After`; it is
+  an integer from 1 through `GATEWAY_AUTH_RATE_WINDOW_SECONDS` representing
+  the remaining current window, not a promise to repeat the configured maximum
+  after wall-clock time has elapsed. Do not disable or bypass the rate gate.
 - Connection failure at startup is not expected: downstream connections are
   lazy. Confirm URLs and services before exercising an API request.
 - Generated-client compilation failure: validate the two tracked YAML files,
