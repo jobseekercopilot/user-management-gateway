@@ -60,13 +60,44 @@ class GatewaySecurityIntegrationTest {
     @Test
     void everyStateChangingBrowserRouteRequiresCsrf() throws Exception {
         for (String path : List.of("/api/auth/register", "/api/auth/login",
-                "/api/auth/refresh", "/api/auth/logout", "/api/auth/profile")) {
+                "/api/auth/refresh", "/api/auth/logout", "/api/auth/profile",
+                "/api/auth/password-reset/request",
+                "/api/auth/password-reset/complete")) {
             var request = path.endsWith("profile") ? put(path) : post(path);
             mockMvc.perform(request.contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.error.code").value("REQUEST_FORBIDDEN"));
         }
         verifyNoInteractions(authenticationApi, userProfilesApi);
+    }
+
+    @Test
+    void passwordResetIsPublicWithCsrfAndCompletionClearsAllSessionCookies() throws Exception {
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                        .with(csrf().asHeader())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"user@example.test\"}"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.message").value(
+                        "If an account exists for that email, a password-reset link has been sent."));
+
+        String token = "A".repeat(43);
+        var completed = mockMvc.perform(post("/api/auth/password-reset/complete")
+                        .with(csrf().asHeader())
+                        .cookie(new Cookie("jsc-access-local", "old-access"),
+                                new Cookie("jsc-refresh-local", "old-refresh"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token":"%s","newPassword":"A secure replacement passphrase 2026!"}
+                                """.formatted(token)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString(token))))
+                .andReturn();
+
+        assertSetCookies(completed.getResponse().getHeaders(HttpHeaders.SET_COOKIE),
+                "jsc-access-local=;", "jsc-refresh-local=;");
+        verify(authenticationApi).requestPasswordReset(any());
+        verify(authenticationApi).completePasswordReset(any());
     }
 
     @Test

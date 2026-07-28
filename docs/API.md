@@ -118,6 +118,38 @@ it. Login preserves passwords exactly and accepts legacy account passwords up
 to 128 Unicode code points; authentication-service remains responsible for
 credential verification.
 
+## Password reset
+
+`POST /api/auth/password-reset/request` is a public CSRF-protected route:
+
+```json
+{
+  "email": "user@example.invalid"
+}
+```
+
+A valid request returns `202` and the same message for known and unknown
+accounts. The gateway canonicalises and validates the bounded email before the
+authentication service applies the account cooldown. The direct-peer rate gate
+also covers this route. Neither response bodies nor logs contain account
+existence, delivery state, or reset material.
+
+`POST /api/auth/password-reset/complete` is also public and CSRF protected:
+
+```json
+{
+  "token": "<single-use URL-safe reset token>",
+  "newPassword": "<new password>"
+}
+```
+
+The gateway bounds both fields, forwards them only through the generated
+authentication client, and returns one stable rejection for invalid, expired,
+modified or consumed reset links. Success is `200` and clears every browser
+session cookie in this response; authentication-service atomically changes the
+password and revokes every server-side session. The gateway never logs or
+returns the token.
+
 ## Read the current profile
 
 `GET /api/auth/profile` requires the access cookie. The gateway asks

@@ -104,6 +104,52 @@ public class UserManagementController {
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
+    @PostMapping(
+            value = "/password-reset/request",
+            consumes = "application/json",
+            produces = "application/json")
+    @Operation(
+            summary = "Request a password-reset email",
+            description = "Always returns the same accepted response for known and unknown accounts.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "Request accepted", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "403", description = "CSRF validation failed", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "429", description = "Source IP rate limited", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "503", description = "Authentication service unavailable", content = @Content(schema = @Schema(implementation = GatewayResponse.class)))
+    })
+    @Tag(name = "Authentication")
+    public ResponseEntity<GatewayResponse> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request) {
+        GatewayResponse response = userManagementService.requestPasswordReset(request);
+        return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
+    @PostMapping(
+            value = "/password-reset/complete",
+            consumes = "application/json",
+            produces = "application/json")
+    @Operation(
+            summary = "Complete a password reset",
+            description = "Consumes a one-time reset token and clears any browser session cookies.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Password changed and sessions revoked", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Reset link or new password rejected", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "403", description = "CSRF validation failed", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "429", description = "Source IP rate limited", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "503", description = "Authentication service unavailable", content = @Content(schema = @Schema(implementation = GatewayResponse.class)))
+    })
+    @Tag(name = "Authentication")
+    public ResponseEntity<GatewayResponse> completePasswordReset(
+            @Valid @RequestBody PasswordResetCompletionRequest request) {
+        GatewayResponse response = userManagementService.completePasswordReset(request);
+        if (response.isSuccess()) {
+            return sessionCookies.clearSession(
+                    ResponseEntity.status(response.getStatusCode()), response);
+        }
+        return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
     @GetMapping("/profile")
     @Operation(summary = "Get current user profile", description = "Retrieves the authenticated user's profile. Ownership is derived from the HttpOnly session cookie; callers cannot select another user.")
     @SecurityRequirement(name = "browserSession")

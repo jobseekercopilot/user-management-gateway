@@ -41,6 +41,8 @@ correlation propagation, dashboard panels and initial alert thresholds.
 | `GET` | `/api/auth/csrf` | None | Bootstrap the readable CSRF cookie and return its header/token pair |
 | `POST` | `/api/auth/register` | CSRF | Create an account/profile and establish an HttpOnly cookie session |
 | `POST` | `/api/auth/login` | CSRF | Authenticate and establish an HttpOnly cookie session |
+| `POST` | `/api/auth/password-reset/request` | CSRF | Return a generic response and request account-email delivery |
+| `POST` | `/api/auth/password-reset/complete` | CSRF | Consume a reset token, change the password, revoke sessions and clear cookies |
 | `POST` | `/api/auth/refresh` | Refresh cookie + CSRF | Rotate access and refresh cookies |
 | `POST` | `/api/auth/logout` | Access cookie + CSRF | Revoke and clear the browser session |
 | `GET` | `/api/auth/profile` | Access cookie | Read the current user's profile |

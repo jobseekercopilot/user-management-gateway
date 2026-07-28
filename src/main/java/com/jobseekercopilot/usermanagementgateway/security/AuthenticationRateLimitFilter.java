@@ -24,7 +24,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AuthenticationRateLimitFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED_PATHS = Set.of(
-            "/api/auth/register", "/api/auth/login", "/api/auth/refresh");
+            "/api/auth/register", "/api/auth/login", "/api/auth/refresh",
+            "/api/auth/password-reset/request",
+            "/api/auth/password-reset/complete");
 
     private final GatewaySecurityProperties.Security properties;
     private final ObjectMapper objectMapper;
