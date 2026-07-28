@@ -17,6 +17,8 @@ import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationAp
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
+import com.jobseekercopilot.usermanagementgateway.model.PasswordResetCompletionRequest;
+import com.jobseekercopilot.usermanagementgateway.model.PasswordResetRequest;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
 import com.jobseekercopilot.usermanagementgateway.model.User;
 import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
@@ -268,6 +270,69 @@ public class UserManagementService implements IUserManagementService {
             log.error("user-management-gateway profile update failed durationMs={} error={}",
                     (System.nanoTime() - startedAt) / 1_000_000,
                     ex.getClass().getSimpleName());
+            return internalError();
+        }
+    }
+
+    public GatewayResponse requestPasswordReset(PasswordResetRequest request) {
+        if (request == null || !hasCodePointLength(request.getEmail(), 1, 254)
+                || !EMAIL.matcher(request.getEmail()).matches()) {
+            return invalidRequest();
+        }
+        try {
+            authenticationApi.requestPasswordReset(
+                    new com.jobseekercopilot.generated.authenticationservice.model.PasswordResetRequest()
+                            .email(request.getEmail()));
+            return new GatewayResponse(
+                    202, true,
+                    "If an account exists for that email, a password-reset link has been sent.");
+        } catch (ResourceAccessException | HttpServerErrorException exception) {
+            log.warn("password-reset request dependency unavailable error={}",
+                    exception.getClass().getSimpleName());
+            return dependencyUnavailable();
+        } catch (HttpClientErrorException exception) {
+            log.warn("password-reset request rejected status={}",
+                    exception.getStatusCode().value());
+            return downstreamRejected(exception);
+        } catch (Exception exception) {
+            log.error("password-reset request failed error={}",
+                    exception.getClass().getSimpleName());
+            return internalError();
+        }
+    }
+
+    public GatewayResponse completePasswordReset(PasswordResetCompletionRequest request) {
+        if (request == null
+                || !hasCodePointLength(request.getToken(), 32, 128)
+                || !request.getToken().matches("^[A-Za-z0-9_-]+$")
+                || !hasCodePointLength(request.getNewPassword(), 15, 128)) {
+            return invalidRequest();
+        }
+        try {
+            authenticationApi.completePasswordReset(
+                    new com.jobseekercopilot.generated.authenticationservice.model.PasswordResetCompletionRequest()
+                            .token(request.getToken())
+                            .newPassword(request.getNewPassword()));
+            return new GatewayResponse(
+                    200, true,
+                    "Your password has been changed. Sign in with your new password.");
+        } catch (ResourceAccessException | HttpServerErrorException exception) {
+            log.warn("password-reset completion dependency unavailable error={}",
+                    exception.getClass().getSimpleName());
+            return dependencyUnavailable();
+        } catch (HttpClientErrorException.BadRequest exception) {
+            log.warn("password-reset completion rejected status=400");
+            return GatewayResponse.failure(
+                    400,
+                    "PASSWORD_RESET_REJECTED",
+                    "The reset link or new password could not be accepted.");
+        } catch (HttpClientErrorException exception) {
+            log.warn("password-reset completion rejected status={}",
+                    exception.getStatusCode().value());
+            return downstreamRejected(exception);
+        } catch (Exception exception) {
+            log.error("password-reset completion failed error={}",
+                    exception.getClass().getSimpleName());
             return internalError();
         }
     }

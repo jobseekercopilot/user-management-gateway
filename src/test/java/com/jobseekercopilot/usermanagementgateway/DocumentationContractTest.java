@@ -26,6 +26,8 @@ class DocumentationContractTest {
             "GET /api/auth/profile",
             "POST /api/auth/login",
             "POST /api/auth/logout",
+            "POST /api/auth/password-reset/complete",
+            "POST /api/auth/password-reset/request",
             "POST /api/auth/refresh",
             "POST /api/auth/register",
             "PUT /api/auth/profile");

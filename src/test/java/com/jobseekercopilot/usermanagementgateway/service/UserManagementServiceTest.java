@@ -168,6 +168,58 @@ class UserManagementServiceTest {
     }
 
     @Test
+    void passwordResetRequestReturnsTheApprovedGenericResponse() {
+        GatewayResponse response = userManagementService.requestPasswordReset(
+                new PasswordResetRequest("person@example.test"));
+
+        assertEquals(202, response.getStatusCode());
+        assertTrue(response.isSuccess());
+        assertEquals(
+                "If an account exists for that email, a password-reset link has been sent.",
+                response.getMessage());
+        verify(authenticationApi).requestPasswordReset(any());
+    }
+
+    @Test
+    void passwordResetRequestDoesNotCallDownstreamForInvalidEmail() {
+        GatewayResponse response = userManagementService.requestPasswordReset(
+                new PasswordResetRequest("not-an-email"));
+
+        assertEquals(400, response.getStatusCode());
+        verify(authenticationApi, never()).requestPasswordReset(any());
+    }
+
+    @Test
+    void passwordResetCompletionReturnsSuccessWithoutReflectingToken() {
+        String token = "A".repeat(43);
+        GatewayResponse response = userManagementService.completePasswordReset(
+                new PasswordResetCompletionRequest(
+                        token, "A secure replacement passphrase 2026!"));
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(response.isSuccess());
+        assertFalse(response.getMessage().contains(token));
+        verify(authenticationApi).completePasswordReset(any());
+    }
+
+    @Test
+    void passwordResetCompletionMapsDownstreamRejectionToStableSafeError() {
+        doThrow(HttpClientErrorException.create(
+                HttpStatus.BAD_REQUEST, "private reset detail",
+                org.springframework.http.HttpHeaders.EMPTY, new byte[0],
+                java.nio.charset.StandardCharsets.UTF_8))
+                .when(authenticationApi).completePasswordReset(any());
+
+        GatewayResponse response = userManagementService.completePasswordReset(
+                new PasswordResetCompletionRequest(
+                        "A".repeat(43), "A secure replacement passphrase 2026!"));
+
+        assertEquals(400, response.getStatusCode());
+        assertEquals("PASSWORD_RESET_REJECTED", response.getError().code());
+        assertFalse(response.getMessage().contains("private"));
+    }
+
+    @Test
     void register_ReturnsServiceUnavailable_WhenProfileFailsAfterAuthentication() {
         RegisterRequest request = new RegisterRequest();
         request.setName("John Doe");
