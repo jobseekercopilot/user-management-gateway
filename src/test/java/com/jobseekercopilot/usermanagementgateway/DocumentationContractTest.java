@@ -23,13 +23,24 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 class DocumentationContractTest {
     private static final Set<String> DOCUMENTED_ROUTES = Set.of(
             "GET /api/auth/csrf",
+            "GET /api/auth/evidence",
+            "GET /api/auth/evidence/{entryId}",
             "GET /api/auth/profile",
+            "PATCH /api/auth/profile",
+            "POST /api/auth/evidence",
+            "POST /api/auth/evidence/{entryId}/archive",
+            "POST /api/auth/evidence/{entryId}/confirm",
+            "POST /api/auth/evidence/{entryId}/hide",
+            "POST /api/auth/evidence/{entryId}/restore",
+            "POST /api/auth/evidence/{entryId}/show",
+            "POST /api/auth/evidence/{entryId}/supersede",
             "POST /api/auth/login",
             "POST /api/auth/logout",
             "POST /api/auth/password-reset/complete",
             "POST /api/auth/password-reset/request",
             "POST /api/auth/refresh",
             "POST /api/auth/register",
+            "PUT /api/auth/evidence/{entryId}",
             "PUT /api/auth/profile");
 
     private static final Map<String, String> CONFIGURATION = Map.ofEntries(

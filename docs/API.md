@@ -1,6 +1,6 @@
 # User Management Gateway API
 
-This reference describes public contract `2.0.0`. It replaces the incompatible
+This reference describes public contract `2.1.0`. It replaces the incompatible
 1.x browser bearer-token contract; see the
 [OpenAPI contract policy](OPENAPI_CONTRACT.md) for migration and pinning rules.
 
@@ -62,37 +62,21 @@ session returns stable `401`.
 ## Register
 
 `POST /api/auth/register` creates the authentication account, logs in, and
-creates the profile synchronously.
+creates a blank profile synchronously. Only the approved account fields are
+needed:
 
 ```json
 {
   "name": "Example User",
   "email": "user@example.invalid",
-  "password": "<password>",
-  "profile": {
-    "skills": ["Customer service"],
-    "qualifications": [],
-    "roles": [],
-    "aspirations": {
-      "targetRoles": ["Support analyst"],
-      "targetWeeklyHours": "FULL_TIME"
-    },
-    "workPreferences": {
-      "location": {
-        "postcode": "AA1 1AA",
-        "region": "Example region",
-        "adminDistrict": "Example district",
-        "latitude": 51.5,
-        "longitude": -0.1
-      },
-      "commuteRange": 20
-    }
-  }
+  "password": "<password>"
 }
 ```
 
-`profile` is optional; omitted profiles start with empty skills,
-qualifications and roles. Success is `201`. Names are trimmed and contain 1–100
+The optional legacy `profile` property remains accepted during the compatibility
+window, but new browser registration does not send it. Omitted profiles start
+with empty skills, qualifications and roles and no declared preferences.
+Success is `201`. Names are trimmed and contain 1–100
 Unicode code points. Emails are trimmed, syntactically valid and at most 254
 code points. New passwords contain 15–128 Unicode code points and are forwarded
 exactly as supplied; whitespace is never trimmed or otherwise changed.
@@ -210,6 +194,33 @@ value is exposed as a normal JavaScript-managed parameter.
 text fields have bounded sizes; commute range is 0–500, latitude is -90–90 and
 longitude is -180–180. Domain-specific status and date consistency remains
 owned by the profile service.
+
+## Progressive profile preferences
+
+`PATCH /api/auth/profile` accepts only skills, aspirations and work preferences.
+It preserves roles and qualifications and accepts the current profile revision
+in `If-Match`. Employment types, working patterns and workplace arrangements
+use the producer-defined enums. Availability is explicitly claimant-selected:
+`availableFrom` and `noticePeriodDays` are optional and mutually exclusive.
+
+## Evidence Library
+
+The browser-facing Evidence Library routes are:
+
+- `GET /api/auth/evidence`
+- `GET /api/auth/evidence/{entryId}`
+- `POST /api/auth/evidence`
+- `PUT /api/auth/evidence/{entryId}`
+- `POST /api/auth/evidence/{entryId}/confirm`
+- `POST /api/auth/evidence/{entryId}/hide`
+- `POST /api/auth/evidence/{entryId}/show`
+- `POST /api/auth/evidence/{entryId}/archive`
+- `POST /api/auth/evidence/{entryId}/restore`
+- `POST /api/auth/evidence/{entryId}/supersede`
+
+Writes forward `If-Match`; successful reads and mutations return the producer
+`ETag`. Entry, revision, fact and lifecycle schemas are generated from the
+pinned User Profile 1.2 contract. Browser callers cannot select an owner.
 
 All JSON `POST`, `PUT` and `PATCH` bodies are limited to 65,536 bytes by
 default. Operators can set the positive `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES`

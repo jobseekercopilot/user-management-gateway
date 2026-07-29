@@ -47,6 +47,17 @@ correlation propagation, dashboard panels and initial alert thresholds.
 | `POST` | `/api/auth/logout` | Access cookie + CSRF | Revoke and clear the browser session |
 | `GET` | `/api/auth/profile` | Access cookie | Read the current user's profile |
 | `PUT` | `/api/auth/profile` | Access cookie + CSRF | Replace the current user's profile |
+| `PATCH` | `/api/auth/profile` | Access cookie + CSRF | Progressively update current preferences |
+| `GET` | `/api/auth/evidence` | Access cookie | List evidence, optionally including archived entries |
+| `GET` | `/api/auth/evidence/{entryId}` | Access cookie | Read one claimant-owned evidence entry |
+| `POST` | `/api/auth/evidence` | Access cookie + CSRF | Create a draft evidence entry |
+| `PUT` | `/api/auth/evidence/{entryId}` | Access cookie + CSRF | Create an edited draft revision |
+| `POST` | `/api/auth/evidence/{entryId}/confirm` | Access cookie + CSRF | Confirm the latest draft |
+| `POST` | `/api/auth/evidence/{entryId}/hide` | Access cookie + CSRF | Hide an entry |
+| `POST` | `/api/auth/evidence/{entryId}/show` | Access cookie + CSRF | Show an entry |
+| `POST` | `/api/auth/evidence/{entryId}/archive` | Access cookie + CSRF | Archive an entry |
+| `POST` | `/api/auth/evidence/{entryId}/restore` | Access cookie + CSRF | Restore an archived entry |
+| `POST` | `/api/auth/evidence/{entryId}/supersede` | Access cookie + CSRF | Supersede an entry |
 
 The complete payload fields, examples and response envelope are in the
 [API reference](docs/API.md). Runtime OpenAPI is available at `/v3/api-docs`
