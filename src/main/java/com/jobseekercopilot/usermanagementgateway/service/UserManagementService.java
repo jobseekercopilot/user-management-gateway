@@ -33,6 +33,7 @@ import com.jobseekercopilot.usermanagementgateway.model.Role;
 import com.jobseekercopilot.usermanagementgateway.model.SessionOutcome;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 
 @Service
@@ -324,20 +325,20 @@ public class UserManagementService implements IUserManagementService {
     public ResponseEntity<List<EvidenceEntry>> listEvidence(
             String token,
             boolean includeArchived) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.listEvidenceWithHttpInfo(includeArchived));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.listEvidenceWithHttpInfo(includeArchived)));
     }
 
     public ResponseEntity<EvidenceEntry> getEvidence(String token, UUID entryId) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.getEvidenceWithHttpInfo(entryId));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.getEvidenceWithHttpInfo(entryId)));
     }
 
     public ResponseEntity<EvidenceEntry> createEvidence(
             String token,
             EvidenceWriteRequest request) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.createEvidenceWithHttpInfo(request));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.createEvidenceWithHttpInfo(request)));
     }
 
     public ResponseEntity<EvidenceEntry> updateEvidence(
@@ -345,49 +346,49 @@ public class UserManagementService implements IUserManagementService {
             UUID entryId,
             String ifMatch,
             EvidenceWriteRequest request) {
-        return userProfileAccessTokenContext.withToken(
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
                 token, () -> evidenceLibraryApi.updateEvidenceWithHttpInfo(
-                        entryId, request, ifMatch));
+                        entryId, request, ifMatch)));
     }
 
     public ResponseEntity<EvidenceEntry> confirmEvidence(
             String token,
             UUID entryId,
             String ifMatch) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.confirmEvidenceWithHttpInfo(entryId, ifMatch));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.confirmEvidenceWithHttpInfo(entryId, ifMatch)));
     }
 
     public ResponseEntity<EvidenceEntry> hideEvidence(
             String token,
             UUID entryId,
             String ifMatch) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.hideEvidenceWithHttpInfo(entryId, ifMatch));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.hideEvidenceWithHttpInfo(entryId, ifMatch)));
     }
 
     public ResponseEntity<EvidenceEntry> showEvidence(
             String token,
             UUID entryId,
             String ifMatch) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.showEvidenceWithHttpInfo(entryId, ifMatch));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.showEvidenceWithHttpInfo(entryId, ifMatch)));
     }
 
     public ResponseEntity<EvidenceEntry> archiveEvidence(
             String token,
             UUID entryId,
             String ifMatch) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.archiveEvidenceWithHttpInfo(entryId, ifMatch));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.archiveEvidenceWithHttpInfo(entryId, ifMatch)));
     }
 
     public ResponseEntity<EvidenceEntry> restoreEvidence(
             String token,
             UUID entryId,
             String ifMatch) {
-        return userProfileAccessTokenContext.withToken(
-                token, () -> evidenceLibraryApi.restoreEvidenceWithHttpInfo(entryId, ifMatch));
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
+                token, () -> evidenceLibraryApi.restoreEvidenceWithHttpInfo(entryId, ifMatch)));
     }
 
     public ResponseEntity<EvidenceEntry> supersedeEvidence(
@@ -395,9 +396,28 @@ public class UserManagementService implements IUserManagementService {
             UUID entryId,
             String ifMatch,
             EvidenceSupersedeRequest request) {
-        return userProfileAccessTokenContext.withToken(
+        return evidenceResponse(userProfileAccessTokenContext.withToken(
                 token, () -> evidenceLibraryApi.supersedeEvidenceWithHttpInfo(
-                        entryId, request, ifMatch));
+                        entryId, request, ifMatch)));
+    }
+
+    /**
+     * Rebuilds an Evidence response at the gateway boundary.
+     *
+     * <p>The generated downstream client exposes transport headers such as
+     * {@code Content-Length}. Those values describe the downstream wire body, not
+     * the JSON that this gateway serializes, so forwarding them can leave callers
+     * waiting for bytes that will never arrive. ETag is the only semantic response
+     * header in the pinned Evidence contract.</p>
+     */
+    private <T> ResponseEntity<T> evidenceResponse(ResponseEntity<T> downstream) {
+        HttpHeaders safeHeaders = new HttpHeaders();
+        String etag = downstream.getHeaders().getFirst(HttpHeaders.ETAG);
+        if (etag != null) {
+            safeHeaders.set(HttpHeaders.ETAG, etag);
+        }
+        return new ResponseEntity<>(
+                downstream.getBody(), safeHeaders, downstream.getStatusCode());
     }
 
     public GatewayResponse requestPasswordReset(PasswordResetRequest request) {

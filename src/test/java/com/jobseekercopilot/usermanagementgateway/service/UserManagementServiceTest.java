@@ -8,6 +8,8 @@ import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationAp
 import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import com.jobseekercopilot.generated.userprofileservice.model.EvidenceEntry;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceSupersedeRequest;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceWriteRequest;
 import com.jobseekercopilot.generated.userprofileservice.model.ProfilePreferencesUpdate;
 import com.jobseekercopilot.usermanagementgateway.config.UserProfileAccessTokenContext;
 import com.jobseekercopilot.usermanagementgateway.model.*;
@@ -19,6 +21,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -114,17 +117,99 @@ class UserManagementServiceTest {
     @Test
     void archiveEvidence_ForwardsOwnerSessionAndEntryVersion() {
         UUID entryId = UUID.randomUUID();
-        ResponseEntity<EvidenceEntry> downstream = ResponseEntity.ok()
-                .eTag("\"6\"")
-                .body(new EvidenceEntry());
+        EvidenceEntry body = new EvidenceEntry();
+        HttpHeaders downstreamHeaders = unsafeDownstreamHeaders("\"6\"");
+        ResponseEntity<EvidenceEntry> downstream =
+                new ResponseEntity<>(body, downstreamHeaders, HttpStatus.ACCEPTED);
         when(evidenceLibraryApi.archiveEvidenceWithHttpInfo(
                 entryId, "\"5\"")).thenReturn(downstream);
 
         ResponseEntity<EvidenceEntry> response =
                 userManagementService.archiveEvidence("token", entryId, "\"5\"");
 
-        assertSame(downstream, response);
+        assertNotSame(downstream, response);
+        assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
+        assertSame(body, response.getBody());
         assertEquals("\"6\"", response.getHeaders().getETag());
+        assertUnsafeDownstreamHeadersWereDropped(response.getHeaders());
+    }
+
+    @Test
+    void listEvidence_RebuildsResponseWithoutDownstreamTransportHeaders() {
+        List<EvidenceEntry> body = List.of(new EvidenceEntry(), new EvidenceEntry());
+        HttpHeaders downstreamHeaders = unsafeDownstreamHeaders("\"9\"");
+        ResponseEntity<List<EvidenceEntry>> downstream =
+                new ResponseEntity<>(body, downstreamHeaders, HttpStatus.PARTIAL_CONTENT);
+        when(evidenceLibraryApi.listEvidenceWithHttpInfo(true)).thenReturn(downstream);
+
+        ResponseEntity<List<EvidenceEntry>> response =
+                userManagementService.listEvidence("token", true);
+
+        assertNotSame(downstream, response);
+        assertEquals(HttpStatus.PARTIAL_CONTENT, response.getStatusCode());
+        assertSame(body, response.getBody());
+        assertEquals("\"9\"", response.getHeaders().getETag());
+        assertUnsafeDownstreamHeadersWereDropped(response.getHeaders());
+    }
+
+    @Test
+    void everySingleEntryEvidenceOperation_RebuildsTheDownstreamResponse() {
+        UUID entryId = UUID.randomUUID();
+        String ifMatch = "\"8\"";
+        EvidenceWriteRequest writeRequest = new EvidenceWriteRequest();
+        EvidenceSupersedeRequest supersedeRequest = new EvidenceSupersedeRequest();
+        EvidenceEntry body = new EvidenceEntry();
+        ResponseEntity<EvidenceEntry> downstream = new ResponseEntity<>(
+                body, unsafeDownstreamHeaders("\"9\""), HttpStatus.ACCEPTED);
+
+        when(evidenceLibraryApi.getEvidenceWithHttpInfo(entryId)).thenReturn(downstream);
+        when(evidenceLibraryApi.createEvidenceWithHttpInfo(writeRequest)).thenReturn(downstream);
+        when(evidenceLibraryApi.updateEvidenceWithHttpInfo(
+                entryId, writeRequest, ifMatch)).thenReturn(downstream);
+        when(evidenceLibraryApi.confirmEvidenceWithHttpInfo(
+                entryId, ifMatch)).thenReturn(downstream);
+        when(evidenceLibraryApi.hideEvidenceWithHttpInfo(
+                entryId, ifMatch)).thenReturn(downstream);
+        when(evidenceLibraryApi.showEvidenceWithHttpInfo(
+                entryId, ifMatch)).thenReturn(downstream);
+        when(evidenceLibraryApi.restoreEvidenceWithHttpInfo(
+                entryId, ifMatch)).thenReturn(downstream);
+        when(evidenceLibraryApi.supersedeEvidenceWithHttpInfo(
+                entryId, supersedeRequest, ifMatch)).thenReturn(downstream);
+
+        List<ResponseEntity<EvidenceEntry>> responses = List.of(
+                userManagementService.getEvidence("token", entryId),
+                userManagementService.createEvidence("token", writeRequest),
+                userManagementService.updateEvidence(
+                        "token", entryId, ifMatch, writeRequest),
+                userManagementService.confirmEvidence("token", entryId, ifMatch),
+                userManagementService.hideEvidence("token", entryId, ifMatch),
+                userManagementService.showEvidence("token", entryId, ifMatch),
+                userManagementService.restoreEvidence("token", entryId, ifMatch),
+                userManagementService.supersedeEvidence(
+                        "token", entryId, ifMatch, supersedeRequest));
+
+        responses.forEach(response -> {
+            assertNotSame(downstream, response);
+            assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
+            assertSame(body, response.getBody());
+            assertEquals("\"9\"", response.getHeaders().getETag());
+            assertUnsafeDownstreamHeadersWereDropped(response.getHeaders());
+        });
+    }
+
+    @Test
+    void getEvidence_WithoutEtagCopiesNoDownstreamHeaders() {
+        UUID entryId = UUID.randomUUID();
+        HttpHeaders downstreamHeaders = unsafeDownstreamHeaders(null);
+        ResponseEntity<EvidenceEntry> downstream = new ResponseEntity<>(
+                new EvidenceEntry(), downstreamHeaders, HttpStatus.OK);
+        when(evidenceLibraryApi.getEvidenceWithHttpInfo(entryId)).thenReturn(downstream);
+
+        ResponseEntity<EvidenceEntry> response =
+                userManagementService.getEvidence("token", entryId);
+
+        assertTrue(response.getHeaders().isEmpty());
     }
 
     @Test
@@ -355,5 +440,32 @@ class UserManagementServiceTest {
         return new ObjectMapper().convertValue(
                 profile,
                 com.jobseekercopilot.generated.userprofileservice.model.UserProfile.class);
+    }
+
+    private HttpHeaders unsafeDownstreamHeaders(String etag) {
+        HttpHeaders headers = new HttpHeaders();
+        if (etag != null) {
+            headers.setETag(etag);
+        }
+        headers.setContentLength(5_887);
+        headers.set(HttpHeaders.TRANSFER_ENCODING, "chunked");
+        headers.set(HttpHeaders.CONNECTION, "keep-alive, X-Remove-Me");
+        headers.add("X-Correlation-ID", "downstream-one");
+        headers.add("X-Correlation-ID", "downstream-two");
+        headers.add(HttpHeaders.SET_COOKIE, "downstream-session=must-not-cross-gateway");
+        headers.set("X-Remove-Me", "named by Connection");
+        headers.set("X-Downstream-Only", "must-not-cross-gateway");
+        return headers;
+    }
+
+    private void assertUnsafeDownstreamHeadersWereDropped(HttpHeaders headers) {
+        assertEquals(1, headers.size());
+        assertFalse(headers.containsKey(HttpHeaders.CONTENT_LENGTH));
+        assertFalse(headers.containsKey(HttpHeaders.TRANSFER_ENCODING));
+        assertFalse(headers.containsKey(HttpHeaders.CONNECTION));
+        assertFalse(headers.containsKey("X-Correlation-ID"));
+        assertFalse(headers.containsKey(HttpHeaders.SET_COOKIE));
+        assertFalse(headers.containsKey("X-Remove-Me"));
+        assertFalse(headers.containsKey("X-Downstream-Only"));
     }
 }
