@@ -15,6 +15,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
+import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceEntry;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceSupersedeRequest;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceWriteRequest;
+import com.jobseekercopilot.generated.userprofileservice.model.ProfilePreferencesUpdate;
 import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.PasswordResetCompletionRequest;
@@ -25,6 +30,9 @@ import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
 import com.jobseekercopilot.usermanagementgateway.model.Qualification;
 import com.jobseekercopilot.usermanagementgateway.model.Role;
 import com.jobseekercopilot.usermanagementgateway.model.SessionOutcome;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
 
 @Service
 @Primary
@@ -38,6 +46,9 @@ public class UserManagementService implements IUserManagementService {
 
     @Autowired
     private UserProfilesApi userProfilesApi;
+
+    @Autowired
+    private EvidenceLibraryApi evidenceLibraryApi;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -274,6 +285,102 @@ public class UserManagementService implements IUserManagementService {
         }
     }
 
+    public GatewayResponse updatePreferences(
+            ProfilePreferencesUpdate update,
+            String token,
+            String ifMatch) {
+        if (update == null || token == null || token.isBlank()) {
+            return invalidRequest();
+        }
+        try {
+            var userAccount = getUser(token);
+            var downstream = userProfilesApi.updateMyPreferences(
+                    bearer(token), update, ifMatch);
+            UserProfile profile = objectMapper.convertValue(downstream, UserProfile.class);
+            User user = new User(
+                    userAccount.getId(), userAccount.getName(), userAccount.getEmail(), profile);
+            return new GatewayResponse(
+                    200, true, "Profile preferences updated successfully.", user);
+        } catch (ResourceAccessException | HttpServerErrorException exception) {
+            return dependencyUnavailable();
+        } catch (HttpClientErrorException exception) {
+            return downstreamRejected(exception);
+        } catch (Exception exception) {
+            log.error("profile preference update failed error={}", exception.getClass().getSimpleName());
+            return internalError();
+        }
+    }
+
+    public ResponseEntity<List<EvidenceEntry>> listEvidence(
+            String token,
+            boolean includeArchived) {
+        return evidenceLibraryApi.listEvidenceWithHttpInfo(
+                bearer(token), includeArchived);
+    }
+
+    public ResponseEntity<EvidenceEntry> getEvidence(String token, UUID entryId) {
+        return evidenceLibraryApi.getEvidenceWithHttpInfo(bearer(token), entryId);
+    }
+
+    public ResponseEntity<EvidenceEntry> createEvidence(
+            String token,
+            EvidenceWriteRequest request) {
+        return evidenceLibraryApi.createEvidenceWithHttpInfo(bearer(token), request);
+    }
+
+    public ResponseEntity<EvidenceEntry> updateEvidence(
+            String token,
+            UUID entryId,
+            String ifMatch,
+            EvidenceWriteRequest request) {
+        return evidenceLibraryApi.updateEvidenceWithHttpInfo(
+                bearer(token), entryId, request, ifMatch);
+    }
+
+    public ResponseEntity<EvidenceEntry> confirmEvidence(
+            String token,
+            UUID entryId,
+            String ifMatch) {
+        return evidenceLibraryApi.confirmEvidenceWithHttpInfo(bearer(token), entryId, ifMatch);
+    }
+
+    public ResponseEntity<EvidenceEntry> hideEvidence(
+            String token,
+            UUID entryId,
+            String ifMatch) {
+        return evidenceLibraryApi.hideEvidenceWithHttpInfo(bearer(token), entryId, ifMatch);
+    }
+
+    public ResponseEntity<EvidenceEntry> showEvidence(
+            String token,
+            UUID entryId,
+            String ifMatch) {
+        return evidenceLibraryApi.showEvidenceWithHttpInfo(bearer(token), entryId, ifMatch);
+    }
+
+    public ResponseEntity<EvidenceEntry> archiveEvidence(
+            String token,
+            UUID entryId,
+            String ifMatch) {
+        return evidenceLibraryApi.archiveEvidenceWithHttpInfo(bearer(token), entryId, ifMatch);
+    }
+
+    public ResponseEntity<EvidenceEntry> restoreEvidence(
+            String token,
+            UUID entryId,
+            String ifMatch) {
+        return evidenceLibraryApi.restoreEvidenceWithHttpInfo(bearer(token), entryId, ifMatch);
+    }
+
+    public ResponseEntity<EvidenceEntry> supersedeEvidence(
+            String token,
+            UUID entryId,
+            String ifMatch,
+            EvidenceSupersedeRequest request) {
+        return evidenceLibraryApi.supersedeEvidenceWithHttpInfo(
+                bearer(token), entryId, request, ifMatch);
+    }
+
     public GatewayResponse requestPasswordReset(PasswordResetRequest request) {
         if (request == null || !hasCodePointLength(request.getEmail(), 1, 254)
                 || !EMAIL.matcher(request.getEmail()).matches()) {
@@ -445,6 +552,10 @@ public class UserManagementService implements IUserManagementService {
         return token.startsWith("Bearer ") ? token.substring(7) : token;
     }
 
+    private String bearer(String token) {
+        return "Bearer " + cleanToken(token);
+    }
+
     private UserProfile getProfileByAccessToken(String accessToken) {
         long startedAt = System.nanoTime();
         log.info("Calling user-profile-service get profile");
@@ -465,7 +576,7 @@ public class UserManagementService implements IUserManagementService {
                 profile,
                 com.jobseekercopilot.generated.userprofileservice.model.UserProfile.class);
         var downstreamResponse = userProfilesApi.createOrUpdateMyProfile(
-                "Bearer " + cleanToken(accessToken), downstreamRequest);
+                bearer(accessToken), downstreamRequest, null);
         UserProfile savedProfile = objectMapper.convertValue(downstreamResponse, UserProfile.class);
         log.info("user-profile-service save profile returned durationMs={}",
                 (System.nanoTime() - startedAt) / 1_000_000);

@@ -1,6 +1,7 @@
 package com.jobseekercopilot.usermanagementgateway;
 
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
+import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
@@ -40,6 +41,9 @@ class GatewaySecurityIntegrationTest {
     @MockBean
     private UserProfilesApi userProfilesApi;
 
+    @MockBean
+    private EvidenceLibraryApi evidenceLibraryApi;
+
     @Test
     void csrfBootstrapIsPublicAndIssuesReadableSameSiteCookie() throws Exception {
         var result = mockMvc.perform(get("/api/auth/csrf"))
@@ -61,6 +65,13 @@ class GatewaySecurityIntegrationTest {
     void everyStateChangingBrowserRouteRequiresCsrf() throws Exception {
         for (String path : List.of("/api/auth/register", "/api/auth/login",
                 "/api/auth/refresh", "/api/auth/logout", "/api/auth/profile",
+                "/api/auth/evidence",
+                "/api/auth/evidence/00000000-0000-0000-0000-000000000001/confirm",
+                "/api/auth/evidence/00000000-0000-0000-0000-000000000001/hide",
+                "/api/auth/evidence/00000000-0000-0000-0000-000000000001/show",
+                "/api/auth/evidence/00000000-0000-0000-0000-000000000001/archive",
+                "/api/auth/evidence/00000000-0000-0000-0000-000000000001/restore",
+                "/api/auth/evidence/00000000-0000-0000-0000-000000000001/supersede",
                 "/api/auth/password-reset/request",
                 "/api/auth/password-reset/complete")) {
             var request = path.endsWith("profile") ? put(path) : post(path);
@@ -68,7 +79,15 @@ class GatewaySecurityIntegrationTest {
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.error.code").value("REQUEST_FORBIDDEN"));
         }
-        verifyNoInteractions(authenticationApi, userProfilesApi);
+        for (String path : List.of(
+                "/api/auth/profile",
+                "/api/auth/evidence/00000000-0000-0000-0000-000000000001")) {
+            mockMvc.perform(patch(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(put(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+        verifyNoInteractions(authenticationApi, userProfilesApi, evidenceLibraryApi);
     }
 
     @Test

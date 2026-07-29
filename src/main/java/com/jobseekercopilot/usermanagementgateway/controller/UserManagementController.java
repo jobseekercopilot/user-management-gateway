@@ -1,5 +1,9 @@
 package com.jobseekercopilot.usermanagementgateway.controller;
 
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceEntry;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceSupersedeRequest;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceWriteRequest;
+import com.jobseekercopilot.generated.userprofileservice.model.ProfilePreferencesUpdate;
 import com.jobseekercopilot.usermanagementgateway.model.*;
 import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry;
 import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry.UserOperation;
@@ -16,6 +20,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +28,8 @@ import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -196,6 +203,150 @@ public class UserManagementController {
         GatewayResponse response = userManagementService.updateProfile(profile, token);
         telemetry.record(UserOperation.PROFILE_UPDATE, response, System.nanoTime() - startedAt);
         return ResponseEntity.status(response.getStatusCode()).body(response);
+    }
+
+    @PatchMapping(value = "/profile", consumes = "application/json", produces = "application/json")
+    @Operation(
+            summary = "Update current profile preferences",
+            description = "Updates only current intentions and work preferences without replacing historical profile sections.")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Profile")
+    public ResponseEntity<GatewayResponse> updatePreferences(
+            @Valid @RequestBody ProfilePreferencesUpdate update,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            BearerTokenAuthentication authentication) {
+        GatewayResponse response = userManagementService.updatePreferences(
+                update, authentication.getToken().getTokenValue(), ifMatch);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(response.getStatusCode());
+        if (response.isSuccess()
+                && response.getUser() != null
+                && response.getUser().getProfile() != null
+                && response.getUser().getProfile().getRevision() != null) {
+            builder.eTag(Long.toString(response.getUser().getProfile().getRevision()));
+        }
+        return builder.body(response);
+    }
+
+    @GetMapping(value = "/evidence", produces = "application/json")
+    @Operation(summary = "List current claimant evidence")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<List<EvidenceEntry>> listEvidence(
+            @RequestParam(defaultValue = "false") boolean includeArchived,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.listEvidence(
+                authentication.getToken().getTokenValue(), includeArchived);
+    }
+
+    @GetMapping(value = "/evidence/{entryId}", produces = "application/json")
+    @Operation(summary = "Get one claimant-owned evidence entry")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> getEvidence(
+            @PathVariable UUID entryId,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.getEvidence(
+                authentication.getToken().getTokenValue(), entryId);
+    }
+
+    @PostMapping(value = "/evidence", consumes = "application/json", produces = "application/json")
+    @Operation(summary = "Create a draft evidence entry")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> createEvidence(
+            @Valid @RequestBody EvidenceWriteRequest request,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.createEvidence(
+                authentication.getToken().getTokenValue(), request);
+    }
+
+    @PutMapping(value = "/evidence/{entryId}", consumes = "application/json", produces = "application/json")
+    @Operation(summary = "Create an edited draft evidence revision")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> updateEvidence(
+            @PathVariable UUID entryId,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody EvidenceWriteRequest request,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.updateEvidence(
+                authentication.getToken().getTokenValue(), entryId, ifMatch, request);
+    }
+
+    @PostMapping(value = "/evidence/{entryId}/confirm", produces = "application/json")
+    @Operation(summary = "Confirm the latest draft evidence revision")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> confirmEvidence(
+            @PathVariable UUID entryId,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.confirmEvidence(
+                authentication.getToken().getTokenValue(), entryId, ifMatch);
+    }
+
+    @PostMapping(value = "/evidence/{entryId}/hide", produces = "application/json")
+    @Operation(summary = "Hide an evidence entry")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> hideEvidence(
+            @PathVariable UUID entryId,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.hideEvidence(
+                authentication.getToken().getTokenValue(), entryId, ifMatch);
+    }
+
+    @PostMapping(value = "/evidence/{entryId}/show", produces = "application/json")
+    @Operation(summary = "Show an evidence entry")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> showEvidence(
+            @PathVariable UUID entryId,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.showEvidence(
+                authentication.getToken().getTokenValue(), entryId, ifMatch);
+    }
+
+    @PostMapping(value = "/evidence/{entryId}/archive", produces = "application/json")
+    @Operation(summary = "Archive an evidence entry")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> archiveEvidence(
+            @PathVariable UUID entryId,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.archiveEvidence(
+                authentication.getToken().getTokenValue(), entryId, ifMatch);
+    }
+
+    @PostMapping(value = "/evidence/{entryId}/restore", produces = "application/json")
+    @Operation(summary = "Restore an archived evidence entry")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> restoreEvidence(
+            @PathVariable UUID entryId,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.restoreEvidence(
+                authentication.getToken().getTokenValue(), entryId, ifMatch);
+    }
+
+    @PostMapping(
+            value = "/evidence/{entryId}/supersede",
+            consumes = "application/json",
+            produces = "application/json")
+    @Operation(summary = "Supersede an evidence entry with another claimant-owned entry")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Evidence Library")
+    public ResponseEntity<EvidenceEntry> supersedeEvidence(
+            @PathVariable UUID entryId,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody EvidenceSupersedeRequest request,
+            BearerTokenAuthentication authentication) {
+        return userManagementService.supersedeEvidence(
+                authentication.getToken().getTokenValue(), entryId, ifMatch, request);
     }
 
     @PostMapping("/refresh")

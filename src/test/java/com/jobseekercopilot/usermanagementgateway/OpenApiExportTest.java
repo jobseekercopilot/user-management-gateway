@@ -37,7 +37,7 @@ class OpenApiExportTest {
         JsonNode root = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
-        assertEquals("2.0.0", root.at("/info/version").asText());
+        assertEquals("2.1.0", root.at("/info/version").asText());
         JsonNode session = root.at("/components/securitySchemes/browserSession");
         assertEquals("apiKey", session.path("type").asText());
         assertEquals("cookie", session.path("in").asText());
@@ -52,6 +52,15 @@ class OpenApiExportTest {
                 "200", "401", "404", "409", "429", "500", "503");
         assertProtectedProfileOperation(root.at("/paths/~1api~1auth~1profile/put"),
                 "200", "400", "401", "403", "404", "409", "413", "415", "429", "500", "503");
+        assertTrue(root.at("/paths/~1api~1auth~1profile/patch/security").toString()
+                .contains("browserSession"));
+        assertTrue(root.at("/paths/~1api~1auth~1evidence/get/security").toString()
+                .contains("browserSession"));
+        assertTrue(root.at("/paths/~1api~1auth~1evidence/post/security").toString()
+                .contains("browserSession"));
+        assertTrue(root.at("/paths/~1api~1auth~1evidence~1{entryId}~1confirm/post").isObject());
+        assertTrue(root.at("/components/schemas/EvidenceEntry/properties/revisions").isObject());
+        assertTrue(root.at("/components/schemas/EvidenceWriteRequest/properties/category").isObject());
         assertPublicOperation(root.at("/paths/~1api~1auth~1register/post"),
                 "201", "400", "403", "409", "413", "415", "429", "500", "503");
         assertPublicOperation(root.at("/paths/~1api~1auth~1login/post"),

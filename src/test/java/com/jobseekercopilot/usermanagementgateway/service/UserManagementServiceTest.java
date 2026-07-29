@@ -1,10 +1,14 @@
 package com.jobseekercopilot.usermanagementgateway.service;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
+import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceEntry;
+import com.jobseekercopilot.generated.userprofileservice.model.ProfilePreferencesUpdate;
 import com.jobseekercopilot.usermanagementgateway.model.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -27,38 +32,29 @@ class UserManagementServiceTest {
     @Mock
     private UserProfilesApi userProfilesApi;
 
+    @Mock
+    private EvidenceLibraryApi evidenceLibraryApi;
+
     @InjectMocks
     private UserManagementService userManagementService;
 
     @Test
-    void register_ShouldReturnSuccess() {
+    void register_WithCredentialsOnly_CreatesBlankProfileAndReturnsSuccess() {
         RegisterRequest request = new RegisterRequest();
         request.setName("John Doe");
         request.setEmail("john@test.com");
         request.setPassword("A valid local passphrase 2026!");
-        request.setProfile(new UserProfile(
-            List.of("Java"),
-            List.of(new Qualification()),
-            List.of(new Role()),
-            new Aspirations(),
-            new WorkPreferences()
-        ));
 
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
                 .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
                 .id("user-123").name("John Doe").email("john@test.com");
         UserProfile profile = new UserProfile(
-            List.of("Java"),
-            List.of(new Qualification()),
-            List.of(new Role()),
-            new Aspirations(),
-            new WorkPreferences()
-        );
+                List.of(), List.of(), List.of(), null, null);
 
         when(authenticationApi.login(any())).thenReturn(loginResponse);
         when(authenticationApi.getCurrentUser("Bearer jwt-token")).thenReturn(accountResponse);
-        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer jwt-token"), any()))
+        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer jwt-token"), any(), isNull()))
                 .thenReturn(downstreamProfile(profile));
 
         GatewayResponse response = userManagementService.register(request);
@@ -66,6 +62,14 @@ class UserManagementServiceTest {
         assertTrue(response.isSuccess(), response.getMessage());
         assertEquals(201, response.getStatusCode());
         assertNotNull(response.getUser());
+        verify(userProfilesApi).createOrUpdateMyProfile(
+                eq("Bearer jwt-token"),
+                argThat(candidate -> candidate.getSkills().isEmpty()
+                        && candidate.getQualifications().isEmpty()
+                        && candidate.getRoles().isEmpty()
+                        && candidate.getAspirations() == null
+                        && candidate.getWorkPreferences() == null),
+                isNull());
     }
 
     @Test
@@ -78,6 +82,40 @@ class UserManagementServiceTest {
         assertFalse(response.isSuccess());
         assertEquals(400, response.getStatusCode());
         verify(authenticationApi, never()).register(any());
+    }
+
+    @Test
+    void updatePreferences_ForwardsRevisionWithoutReplacingHistory() {
+        var update = new ProfilePreferencesUpdate().skills(List.of("Java"));
+        var account = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
+                .id("user-123").name("John Doe").email("john@test.com");
+        var downstream = downstreamProfile(new UserProfile(
+                List.of("Java"), List.of(), List.of(), null, null));
+        when(authenticationApi.getCurrentUser("Bearer token")).thenReturn(account);
+        when(userProfilesApi.updateMyPreferences("Bearer token", update, "\"3\""))
+                .thenReturn(downstream);
+
+        GatewayResponse response = userManagementService.updatePreferences(update, "token", "\"3\"");
+
+        assertTrue(response.isSuccess());
+        assertEquals(List.of("Java"), response.getUser().getProfile().getSkills());
+        verify(userProfilesApi).updateMyPreferences("Bearer token", update, "\"3\"");
+    }
+
+    @Test
+    void archiveEvidence_ForwardsOwnerSessionAndEntryVersion() {
+        UUID entryId = UUID.randomUUID();
+        ResponseEntity<EvidenceEntry> downstream = ResponseEntity.ok()
+                .eTag("\"6\"")
+                .body(new EvidenceEntry());
+        when(evidenceLibraryApi.archiveEvidenceWithHttpInfo(
+                "Bearer token", entryId, "\"5\"")).thenReturn(downstream);
+
+        ResponseEntity<EvidenceEntry> response =
+                userManagementService.archiveEvidence("token", entryId, "\"5\"");
+
+        assertSame(downstream, response);
+        assertEquals("\"6\"", response.getHeaders().getETag());
     }
 
     @Test
@@ -231,7 +269,7 @@ class UserManagementServiceTest {
                 .id("user-123").name("John Doe").email("john@test.com");
         when(authenticationApi.login(any())).thenReturn(loginResponse);
         when(authenticationApi.getCurrentUser("Bearer jwt-token")).thenReturn(accountResponse);
-        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer jwt-token"), any()))
+        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer jwt-token"), any(), isNull()))
                 .thenThrow(new ResourceAccessException("profile unavailable"));
 
         GatewayResponse response = userManagementService.register(request);
@@ -286,7 +324,7 @@ class UserManagementServiceTest {
                 .id("user-123").name("John Doe").email("john@test.com");
 
         when(authenticationApi.getCurrentUser("Bearer " + token)).thenReturn(accountResponse);
-        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer valid-token"), any()))
+        when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer valid-token"), any(), isNull()))
                 .thenReturn(downstreamProfile(profile));
 
         GatewayResponse response = userManagementService.updateProfile(profile, token);

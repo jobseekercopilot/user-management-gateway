@@ -17,8 +17,8 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("Jobseeker Copilot - User Management Gateway API")
-                        .description("Gateway API for user registration, authentication, and profile management. Orchestrates calls to authentication-service and user-profile-service.")
-                        .version("2.0.0"))
+                        .description("Gateway API for user registration, authentication, progressive profile management and the Evidence Library. Orchestrates calls to authentication-service and user-profile-service.")
+                        .version("2.1.0"))
                 .components(new Components().addSecuritySchemes("browserSession",
                         new SecurityScheme()
                                 .type(SecurityScheme.Type.APIKEY)
@@ -33,7 +33,8 @@ public class OpenApiConfig {
                                         .description("HttpOnly rotating refresh cookie set by the gateway.")))
                 .tags(List.of(
                         new Tag().name("Authentication").description("User registration and login endpoints"),
-                        new Tag().name("Profile").description("User profile retrieval and update operations")
+                        new Tag().name("Profile").description("User profile retrieval and progressive update operations"),
+                        new Tag().name("Evidence Library").description("Owner-scoped reusable evidence operations")
                 ));
     }
 }

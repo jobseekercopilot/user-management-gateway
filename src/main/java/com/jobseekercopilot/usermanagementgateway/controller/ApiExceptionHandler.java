@@ -11,6 +11,7 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Comparator;
@@ -46,6 +47,23 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<GatewayResponse> notFound() {
         return failure(HttpStatus.NOT_FOUND, "NOT_FOUND", "The requested resource was not found.");
+    }
+
+    @ExceptionHandler(RestClientResponseException.class)
+    ResponseEntity<GatewayResponse> downstreamRejected(RestClientResponseException exception) {
+        int status = exception.getStatusCode().value();
+        return switch (status) {
+            case 400 -> ResponseEntity.badRequest().body(
+                    GatewayResponse.failure(400, "DOWNSTREAM_VALIDATION_FAILED", "Request validation failed."));
+            case 401 -> ResponseEntity.status(401).body(
+                    GatewayResponse.failure(401, "SESSION_EXPIRED", "The browser session has expired."));
+            case 404 -> ResponseEntity.status(404).body(
+                    GatewayResponse.failure(404, "NOT_FOUND", "The requested resource was not found."));
+            case 409 -> ResponseEntity.status(409).body(
+                    GatewayResponse.failure(409, "WRITE_CONFLICT", "The resource changed; reload it and try again."));
+            default -> ResponseEntity.status(status).body(
+                    GatewayResponse.failure(status, "DOWNSTREAM_REQUEST_REJECTED", "The request was rejected."));
+        };
     }
 
     @ExceptionHandler(Exception.class)

@@ -2,7 +2,7 @@
 
 ## Public contract version
 
-The current browser-facing contract is `2.0.0`. Version 2 is the approved
+The current browser-facing contract is `2.1.0`. Version 2 is the approved
 breaking migration from the 1.x browser bearer-token response/header contract
 to gateway-owned HttpOnly access/refresh cookies, CSRF-protected writes and
 subject-bound profile operations. A 1.x client must not be used against this

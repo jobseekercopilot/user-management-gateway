@@ -1,6 +1,7 @@
 package com.jobseekercopilot.usermanagementgateway.config;
 
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
+import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -41,6 +42,20 @@ public class DownstreamApiConfig {
         var apiClient = new com.jobseekercopilot.generated.userprofileservice.client.ApiClient(restTemplate);
         apiClient.setBasePath(basePath);
         return new UserProfilesApi(apiClient);
+    }
+
+    @Bean
+    EvidenceLibraryApi evidenceLibraryApi(
+            @Value("${user.profile.service.url}") String basePath,
+            @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
+            @Qualifier("userProfileResilienceInterceptor") DownstreamResilienceInterceptor resilienceInterceptor,
+            @Value("${downstream.connect-timeout-ms}") int connectTimeoutMs,
+            @Value("${downstream.read-timeout-ms}") int readTimeoutMs) {
+        RestTemplate restTemplate = restTemplate(
+                correlationIdInterceptor, resilienceInterceptor, connectTimeoutMs, readTimeoutMs);
+        var apiClient = new com.jobseekercopilot.generated.userprofileservice.client.ApiClient(restTemplate);
+        apiClient.setBasePath(basePath);
+        return new EvidenceLibraryApi(apiClient);
     }
 
     @Bean
