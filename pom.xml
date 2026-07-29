@@ -130,7 +130,7 @@
                             <configOptions>
                                 <dateLibrary>java8</dateLibrary>
                                 <hideGenerationTimestamp>true</hideGenerationTimestamp>
-                                <openApiNullable>true</openApiNullable>
+                                <openApiNullable>false</openApiNullable>
                                 <useJakartaEe>true</useJakartaEe>
                             </configOptions>
                         </configuration>
