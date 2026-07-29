@@ -3,6 +3,7 @@ package com.jobseekercopilot.usermanagementgateway;
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
 import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
+import com.jobseekercopilot.usermanagementgateway.config.UserProfileAccessTokenContext;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -43,6 +45,9 @@ class GatewaySecurityIntegrationTest {
 
     @MockBean
     private EvidenceLibraryApi evidenceLibraryApi;
+
+    @SpyBean
+    private UserProfileAccessTokenContext userProfileAccessTokenContext;
 
     @Test
     void csrfBootstrapIsPublicAndIssuesReadableSameSiteCookie() throws Exception {
@@ -123,7 +128,7 @@ class GatewaySecurityIntegrationTest {
     void loginSetsHttpOnlyCookiesAndNeverReturnsTokens() throws Exception {
         when(authenticationApi.login(any())).thenReturn(login("access-secret", "refresh-secret"));
         when(authenticationApi.getCurrentUser("Bearer access-secret")).thenReturn(account());
-        when(userProfilesApi.getMyProfile("Bearer access-secret")).thenReturn(profile());
+        when(userProfilesApi.getMyProfile()).thenReturn(profile());
 
         var result = mockMvc.perform(post("/api/auth/login")
                         .with(csrf().asHeader())
@@ -151,7 +156,7 @@ class GatewaySecurityIntegrationTest {
     @Test
     void protectedProfileUsesOnlyCookieAndForwardsEndUserBearerToken() throws Exception {
         when(authenticationApi.getCurrentUser("Bearer valid-access")).thenReturn(account());
-        when(userProfilesApi.getMyProfile("Bearer valid-access")).thenReturn(profile());
+        when(userProfilesApi.getMyProfile()).thenReturn(profile());
 
         mockMvc.perform(get("/api/auth/profile")
                         .cookie(new Cookie("jsc-access-local", "valid-access"))
@@ -160,9 +165,11 @@ class GatewaySecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.id").value("user-123"));
 
-        verify(userProfilesApi).getMyProfile("Bearer valid-access");
-        verify(userProfilesApi, never()).getMyProfile(contains("browser-forgery"));
-        verify(userProfilesApi, never()).getMyProfile(contains("victim"));
+        verify(userProfilesApi).getMyProfile();
+        verify(userProfileAccessTokenContext).withToken(eq("valid-access"), any());
+        verify(userProfileAccessTokenContext, never()).withToken(
+                contains("browser-forgery"), any());
+        verify(userProfileAccessTokenContext, never()).withToken(contains("victim"), any());
     }
 
     @Test

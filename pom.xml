@@ -131,6 +131,7 @@
                                 <dateLibrary>java8</dateLibrary>
                                 <hideGenerationTimestamp>true</hideGenerationTimestamp>
                                 <openApiNullable>false</openApiNullable>
+                                <useBeanValidation>true</useBeanValidation>
                                 <useJakartaEe>true</useJakartaEe>
                             </configOptions>
                         </configuration>

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "repository": "jobseekercopilot/user-profile-service",
+  "contractPath": "api/openapi.json",
+  "contractVersion": "2.0.0",
+  "sourceRevision": "03d24c68342f86d573623541a4f8506acdf1b047",
+  "sha256": "962254757585bfd1339df0ffdd3196a4b0b720f8dc16bc0f6c439dedb84771b8",
+  "client": {
+    "groupId": "com.jobseekercopilot.clients",
+    "artifactId": "user-profile-service-client",
+    "version": "2.0.0-rev.03d24c68342f"
+  }
+}

@@ -18,6 +18,11 @@ import java.time.Duration;
 public class DownstreamApiConfig {
 
     @Bean
+    UserProfileAccessTokenContext userProfileAccessTokenContext() {
+        return new UserProfileAccessTokenContext();
+    }
+
+    @Bean
     AuthenticationApi authenticationApi(
             @Value("${authentication.service.url}") String basePath,
             @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
@@ -38,12 +43,14 @@ public class DownstreamApiConfig {
             @Value("${user.profile.service.url}") String basePath,
             @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
             @Qualifier("userProfileResilienceInterceptor") DownstreamResilienceInterceptor resilienceInterceptor,
+            UserProfileAccessTokenContext accessTokenContext,
             @Value("${downstream.connect-timeout-ms}") int connectTimeoutMs,
             @Value("${downstream.read-timeout-ms}") int readTimeoutMs) {
         RestTemplate restTemplate = restTemplate(
                 correlationIdInterceptor, resilienceInterceptor, connectTimeoutMs, readTimeoutMs);
         var apiClient = new com.jobseekercopilot.generated.userprofileservice.client.ApiClient(restTemplate);
         apiClient.setBasePath(basePath);
+        apiClient.setBearerToken(accessTokenContext::currentToken);
         return new UserProfilesApi(apiClient);
     }
 
@@ -52,12 +59,14 @@ public class DownstreamApiConfig {
             @Value("${user.profile.service.url}") String basePath,
             @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
             @Qualifier("userProfileResilienceInterceptor") DownstreamResilienceInterceptor resilienceInterceptor,
+            UserProfileAccessTokenContext accessTokenContext,
             @Value("${downstream.connect-timeout-ms}") int connectTimeoutMs,
             @Value("${downstream.read-timeout-ms}") int readTimeoutMs) {
         RestTemplate restTemplate = restTemplate(
                 correlationIdInterceptor, resilienceInterceptor, connectTimeoutMs, readTimeoutMs);
         var apiClient = new com.jobseekercopilot.generated.userprofileservice.client.ApiClient(restTemplate);
         apiClient.setBasePath(basePath);
+        apiClient.setBearerToken(accessTokenContext::currentToken);
         return new EvidenceLibraryApi(apiClient);
     }
 

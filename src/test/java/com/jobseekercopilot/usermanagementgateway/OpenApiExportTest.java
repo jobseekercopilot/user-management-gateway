@@ -37,7 +37,7 @@ class OpenApiExportTest {
         JsonNode root = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
-        assertEquals("2.1.0", root.at("/info/version").asText());
+        assertEquals("3.0.0", root.at("/info/version").asText());
         JsonNode session = root.at("/components/securitySchemes/browserSession");
         assertEquals("apiKey", session.path("type").asText());
         assertEquals("cookie", session.path("in").asText());
@@ -61,6 +61,15 @@ class OpenApiExportTest {
         assertTrue(root.at("/paths/~1api~1auth~1evidence~1{entryId}~1confirm/post").isObject());
         assertTrue(root.at("/components/schemas/EvidenceEntry/properties/revisions").isObject());
         assertTrue(root.at("/components/schemas/EvidenceWriteRequest/properties/category").isObject());
+        assertEquals(2000, root.at(
+                "/components/schemas/EvidenceWriteRequest/properties/description/maxLength")
+                .asInt());
+        assertEquals(2000, root.at(
+                "/components/schemas/EvidenceWriteRequest/properties/responsibilities/maxLength")
+                .asInt());
+        assertEquals(2000, root.at(
+                "/components/schemas/EvidenceWriteRequest/properties/achievements/maxLength")
+                .asInt());
         assertEquals("object", root.at("/components/schemas/PartialDate/type").asText());
         assertEquals("string", root.at(
                 "/components/schemas/EvidenceEntry/properties/supersededByEntryId/type/0").asText());
