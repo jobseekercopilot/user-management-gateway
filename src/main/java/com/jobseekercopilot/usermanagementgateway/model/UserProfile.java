@@ -16,7 +16,7 @@ import java.util.UUID;
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 public class UserProfile {
     @Schema(accessMode = Schema.AccessMode.READ_ONLY)
-    private UUID id;
+    private Long id;
 
     @Schema(accessMode = Schema.AccessMode.READ_ONLY)
     private String userId;

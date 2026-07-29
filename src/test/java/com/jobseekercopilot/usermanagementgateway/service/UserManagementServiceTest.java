@@ -49,19 +49,23 @@ class UserManagementServiceTest {
                 .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
                 .id("user-123").name("John Doe").email("john@test.com");
-        UserProfile profile = new UserProfile(
-                List.of(), List.of(), List.of(), null, null);
-
         when(authenticationApi.login(any())).thenReturn(loginResponse);
         when(authenticationApi.getCurrentUser("Bearer jwt-token")).thenReturn(accountResponse);
+        var persistedProfile =
+                new com.jobseekercopilot.generated.userprofileservice.model.UserProfile(
+                        42L, "user-123", 1L, UUID.randomUUID(), "digest")
+                        .skills(List.of())
+                        .qualifications(List.of())
+                        .roles(List.of());
         when(userProfilesApi.createOrUpdateMyProfile(eq("Bearer jwt-token"), any(), isNull()))
-                .thenReturn(downstreamProfile(profile));
+                .thenReturn(persistedProfile);
 
         GatewayResponse response = userManagementService.register(request);
 
         assertTrue(response.isSuccess(), response.getMessage());
         assertEquals(201, response.getStatusCode());
         assertNotNull(response.getUser());
+        assertEquals(42L, response.getUser().getProfile().getId());
         verify(userProfilesApi).createOrUpdateMyProfile(
                 eq("Bearer jwt-token"),
                 argThat(candidate -> candidate.getSkills().isEmpty()

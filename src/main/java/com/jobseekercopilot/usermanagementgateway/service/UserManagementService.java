@@ -301,7 +301,13 @@ public class UserManagementService implements IUserManagementService {
                     userAccount.getId(), userAccount.getName(), userAccount.getEmail(), profile);
             return new GatewayResponse(
                     200, true, "Profile preferences updated successfully.", user);
-        } catch (ResourceAccessException | HttpServerErrorException exception) {
+        } catch (HttpServerErrorException exception) {
+            log.warn("profile preference update dependency failed status={}",
+                    exception.getStatusCode().value());
+            return dependencyUnavailable();
+        } catch (ResourceAccessException exception) {
+            log.warn("profile preference update dependency unavailable error={}",
+                    exception.getClass().getSimpleName());
             return dependencyUnavailable();
         } catch (HttpClientErrorException exception) {
             return downstreamRejected(exception);
