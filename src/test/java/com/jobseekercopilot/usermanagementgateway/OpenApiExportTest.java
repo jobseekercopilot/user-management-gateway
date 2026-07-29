@@ -61,6 +61,9 @@ class OpenApiExportTest {
         assertTrue(root.at("/paths/~1api~1auth~1evidence~1{entryId}~1confirm/post").isObject());
         assertTrue(root.at("/components/schemas/EvidenceEntry/properties/revisions").isObject());
         assertTrue(root.at("/components/schemas/EvidenceWriteRequest/properties/category").isObject());
+        assertEquals("object", root.at("/components/schemas/PartialDate/type").asText());
+        assertEquals("string", root.at(
+                "/components/schemas/EvidenceEntry/properties/supersededByEntryId/type/0").asText());
         assertPublicOperation(root.at("/paths/~1api~1auth~1register/post"),
                 "201", "400", "403", "409", "413", "415", "429", "500", "503");
         assertPublicOperation(root.at("/paths/~1api~1auth~1login/post"),
