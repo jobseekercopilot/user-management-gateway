@@ -1,10 +1,10 @@
 openapi: 3.0.1
 info:
   title: Jobseeker Copilot - Authentication Service API
-  version: 1.0.0
+  version: 1.1.0
   description: Consumer contract used by user-management-gateway.
 x-source-repository: jobseekercopilot/authentication-service
-x-source-revision: a0b53294f79adde57134ee87361969ede7c933bb
+x-source-revision: 194f74887b8637485e1afc24b3187cf86c4bd23f
 paths:
   /api/auth/register:
     post:
@@ -127,6 +127,48 @@ paths:
                 type: object
                 additionalProperties:
                   type: string
+  /api/auth/account/export:
+    get:
+      tags: [Account lifecycle]
+      operationId: exportPersonalData
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Owner-scoped synchronous personal-data export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalDataExport'
+  /api/auth/account:
+    delete:
+      tags: [Account lifecycle]
+      operationId: deleteAccount
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+            pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'
+      responses:
+        '202':
+          description: Deletion operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionResponse'
 components:
   schemas:
     RegisterRequest:
@@ -184,3 +226,40 @@ components:
           type: string
         email:
           type: string
+    PersonalDataExport:
+      type: object
+      required: [schemaVersion, generatedAt, account, profile, applications, documents]
+      properties:
+        schemaVersion:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        account:
+          $ref: '#/components/schemas/UserAccountResponse'
+        profile:
+          type: object
+          additionalProperties: true
+        applications:
+          type: object
+          additionalProperties: true
+        documents:
+          type: object
+          additionalProperties: true
+    AccountDeletionResponse:
+      type: object
+      required: [operationId, status, acceptedAt]
+      properties:
+        operationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, RETRY_REQUIRED, COMPLETED]
+        acceptedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true

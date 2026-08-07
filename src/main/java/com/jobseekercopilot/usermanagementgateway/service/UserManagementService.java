@@ -14,6 +14,7 @@ import org.springframework.web.client.ResourceAccessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
+import com.jobseekercopilot.generated.authenticationservice.api.AccountLifecycleApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.model.EvidenceEntry;
@@ -45,6 +46,9 @@ public class UserManagementService implements IUserManagementService {
 
     @Autowired
     private AuthenticationApi authenticationApi;
+
+    @Autowired
+    private AccountLifecycleApi accountLifecycleApi;
 
     @Autowired
     private UserProfilesApi userProfilesApi;
@@ -548,6 +552,18 @@ public class UserManagementService implements IUserManagementService {
     public com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse authenticate(
             String accessToken) {
         return getUser(accessToken);
+    }
+
+    public com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport
+            exportPersonalData(String accessToken) {
+        return accountLifecycleApi.exportPersonalData(
+                "Bearer " + cleanToken(accessToken));
+    }
+
+    public com.jobseekercopilot.generated.authenticationservice.model.AccountDeletionResponse
+            deleteAccount(String accessToken, String idempotencyKey) {
+        return accountLifecycleApi.deleteAccount(
+                "Bearer " + cleanToken(accessToken), idempotencyKey);
     }
 
     private SessionOutcome sessionOutcome(

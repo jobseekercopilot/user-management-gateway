@@ -70,7 +70,8 @@ public class GatewaySecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(
                                 "/api/auth/profile", "/api/auth/profile/**",
-                                "/api/auth/evidence", "/api/auth/evidence/**").authenticated()
+                                "/api/auth/evidence", "/api/auth/evidence/**",
+                                "/api/auth/account", "/api/auth/account/**").authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(resource -> resource
                         .bearerTokenResolver(browserCookieBearerTokenResolver)
@@ -100,7 +101,8 @@ public class GatewaySecurityConfig {
     @Bean
     BearerTokenResolver browserCookieBearerTokenResolver(SessionCookieService cookies) {
         return request -> (request.getRequestURI().startsWith("/api/auth/profile")
-                || request.getRequestURI().startsWith("/api/auth/evidence"))
+                || request.getRequestURI().startsWith("/api/auth/evidence")
+                || request.getRequestURI().startsWith("/api/auth/account"))
                 ? cookies.accessToken(request) : null;
     }
 
@@ -128,11 +130,13 @@ public class GatewaySecurityConfig {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(properties.getSecurity().origins());
         cors.setAllowCredentials(true);
-        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "OPTIONS"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of(
-                "Content-Type", "X-CSRF-Token", "X-Correlation-Id", HttpHeaders.IF_MATCH));
+                "Content-Type", "X-CSRF-Token", "X-Correlation-Id",
+                HttpHeaders.IF_MATCH, "Idempotency-Key"));
         cors.setExposedHeaders(List.of(
-                "X-Correlation-Id", HttpHeaders.RETRY_AFTER, HttpHeaders.ETAG));
+                "X-Correlation-Id", HttpHeaders.RETRY_AFTER, HttpHeaders.ETAG,
+                HttpHeaders.CONTENT_DISPOSITION));
         cors.setMaxAge(600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cors);

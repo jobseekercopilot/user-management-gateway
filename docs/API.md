@@ -244,6 +244,20 @@ asks authentication-service to revoke the session and always expires the local
 access/refresh cookies. A dependency failure is reported accurately rather
 than claiming remote revocation.
 
+## Account export and deletion
+
+`GET /api/auth/account/export` requires an access cookie created by a sign-in
+within the last 15 minutes. It returns one machine-readable JSON document with
+account, profile/evidence, application/history and document/lifecycle data.
+The response uses `Cache-Control: no-store`; no export artifact is retained.
+
+`DELETE /api/auth/account` requires the recent access cookie, CSRF header and a
+stable `Idempotency-Key`. Authentication disables credentials first, then
+coordinates retry-safe owner-scoped deletion. Documents enter the approved
+DOC-09 recoverable-deletion lifecycle; legal holds and the production purge-off
+gate remain authoritative. The gateway clears both browser cookies after the
+operation is accepted.
+
 ## Machine-readable contracts
 
 - Gateway OpenAPI: `GET /v3/api-docs` while the application is running, or

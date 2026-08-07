@@ -1,6 +1,7 @@
 package com.jobseekercopilot.usermanagementgateway;
 
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
+import com.jobseekercopilot.generated.authenticationservice.api.AccountLifecycleApi;
 import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import com.jobseekercopilot.usermanagementgateway.config.UserProfileAccessTokenContext;
@@ -39,6 +40,9 @@ class GatewaySecurityIntegrationTest {
 
     @MockBean
     private AuthenticationApi authenticationApi;
+
+    @MockBean
+    private AccountLifecycleApi accountLifecycleApi;
 
     @MockBean
     private UserProfilesApi userProfilesApi;
@@ -92,7 +96,49 @@ class GatewaySecurityIntegrationTest {
             mockMvc.perform(put(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isForbidden());
         }
+        mockMvc.perform(delete("/api/auth/account")
+                        .header("Idempotency-Key", "delete-request-0001"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("REQUEST_FORBIDDEN"));
         verifyNoInteractions(authenticationApi, userProfilesApi, evidenceLibraryApi);
+    }
+
+    @Test
+    void accountExportAndDeletionUseCookieSessionAndDeletionClearsIt()
+            throws Exception {
+        when(authenticationApi.getCurrentUser("Bearer lifecycle-access"))
+                .thenReturn(account());
+        when(accountLifecycleApi.exportPersonalData("Bearer lifecycle-access"))
+                .thenReturn(new com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport()
+                        .schemaVersion("job-seeker-copilot-personal-data.v1"));
+        when(accountLifecycleApi.deleteAccount(
+                        "Bearer lifecycle-access", "delete-request-0001"))
+                .thenReturn(new com.jobseekercopilot.generated.authenticationservice.model.AccountDeletionResponse()
+                        .operationId(java.util.UUID.fromString(
+                                "10000000-0000-4000-8000-000000000001")));
+
+        mockMvc.perform(get("/api/auth/account/export")
+                        .cookie(new Cookie("jsc-access-local", "lifecycle-access")))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL,
+                        containsString("no-store")))
+                .andExpect(content().string(not(containsString("lifecycle-access"))));
+
+        var deleted = mockMvc.perform(delete("/api/auth/account")
+                        .with(csrf().asHeader())
+                        .cookie(new Cookie("jsc-access-local", "lifecycle-access"),
+                                new Cookie("jsc-refresh-local", "lifecycle-refresh"))
+                        .header("Idempotency-Key", "delete-request-0001"))
+                .andExpect(status().isAccepted())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL,
+                        containsString("no-store")))
+                .andReturn();
+
+        assertSetCookies(deleted.getResponse().getHeaders(HttpHeaders.SET_COOKIE),
+                "jsc-access-local=;", "jsc-refresh-local=;");
+        verify(accountLifecycleApi).exportPersonalData("Bearer lifecycle-access");
+        verify(accountLifecycleApi).deleteAccount(
+                "Bearer lifecycle-access", "delete-request-0001");
     }
 
     @Test

@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
+import com.jobseekercopilot.generated.authenticationservice.api.AccountLifecycleApi;
 import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import com.jobseekercopilot.generated.userprofileservice.model.EvidenceEntry;
@@ -48,6 +49,9 @@ class EvidenceResponseFramingIntegrationTest {
 
     @MockBean
     private AuthenticationApi authenticationApi;
+
+    @MockBean
+    private AccountLifecycleApi accountLifecycleApi;
 
     @MockBean
     private UserProfilesApi userProfilesApi;
