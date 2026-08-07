@@ -205,6 +205,42 @@ public class UserManagementController {
         return ResponseEntity.status(response.getStatusCode()).body(response);
     }
 
+    @GetMapping(value = "/account/export", produces = "application/json")
+    @Operation(
+            summary = "Export current account data",
+            description = "Returns a no-store machine-readable export for a recently authenticated browser session.")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Account lifecycle")
+    public ResponseEntity<com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport>
+            exportPersonalData(BearerTokenAuthentication authentication) {
+        var export = userManagementService.exportPersonalData(
+                authentication.getToken().getTokenValue());
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"job-seeker-copilot-personal-data.json\"")
+                .body(export);
+    }
+
+    @DeleteMapping("/account")
+    @Operation(
+            summary = "Delete current account and owned data",
+            description = "Starts the authenticated retry-safe deletion workflow and clears browser credentials.")
+    @SecurityRequirement(name = "browserSession")
+    @Tag(name = "Account lifecycle")
+    public ResponseEntity<com.jobseekercopilot.generated.authenticationservice.model.AccountDeletionResponse>
+            deleteAccount(
+                    @RequestHeader("Idempotency-Key") String idempotencyKey,
+                    BearerTokenAuthentication authentication) {
+        var response = userManagementService.deleteAccount(
+                authentication.getToken().getTokenValue(), idempotencyKey);
+        return sessionCookies.clearSession(
+                ResponseEntity.accepted()
+                        .cacheControl(org.springframework.http.CacheControl.noStore()),
+                response);
+    }
+
     @PatchMapping(value = "/profile", consumes = "application/json", produces = "application/json")
     @Operation(
             summary = "Update job-search preferences and reusable skills",

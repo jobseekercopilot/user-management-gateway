@@ -45,6 +45,8 @@ correlation propagation, dashboard panels and initial alert thresholds.
 | `POST` | `/api/auth/password-reset/complete` | CSRF | Consume a reset token, change the password, revoke sessions and clear cookies |
 | `POST` | `/api/auth/refresh` | Refresh cookie + CSRF | Rotate access and refresh cookies |
 | `POST` | `/api/auth/logout` | Access cookie + CSRF | Revoke and clear the browser session |
+| `GET` | `/api/auth/account/export` | Recent access cookie | Download a synchronous no-store machine-readable personal-data export |
+| `DELETE` | `/api/auth/account` | Recent access cookie + CSRF + idempotency key | Disable the account and start coordinated retry-safe owned-data deletion |
 | `GET` | `/api/auth/profile` | Access cookie | Read the current user's profile |
 | `PUT` | `/api/auth/profile` | Access cookie + CSRF | Replace the current user's profile |
 | `PATCH` | `/api/auth/profile` | Access cookie + CSRF | Progressively update current preferences |

@@ -22,6 +22,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
         "authentication.service.token=test-only-authentication-service-token-32-bytes")
 class DocumentationContractTest {
     private static final Set<String> DOCUMENTED_ROUTES = Set.of(
+            "DELETE /api/auth/account",
+            "GET /api/auth/account/export",
             "GET /api/auth/csrf",
             "GET /api/auth/evidence",
             "GET /api/auth/evidence/{entryId}",

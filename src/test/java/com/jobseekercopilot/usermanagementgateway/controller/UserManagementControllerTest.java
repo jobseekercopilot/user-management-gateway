@@ -106,6 +106,46 @@ class UserManagementControllerTest {
         verify(telemetry).record(eq(UserOperation.PROFILE_UPDATE), same(serviceResponse), anyLong());
     }
 
+    @Test
+    void accountExportIsNoStoreAndUsesTheAuthenticatedAccessToken() {
+        var export = new com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport()
+                .schemaVersion("job-seeker-copilot-personal-data.v1");
+        when(userManagementService.exportPersonalData("valid-token"))
+                .thenReturn(export);
+
+        var response = userManagementController.exportPersonalData(
+                authentication("valid-token"));
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertSame(export, response.getBody());
+        assertTrue(response.getHeaders().getCacheControl().contains("no-store"));
+        assertEquals(
+                "attachment; filename=\"job-seeker-copilot-personal-data.json\"",
+                response.getHeaders().getFirst(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION));
+        verify(userManagementService).exportPersonalData("valid-token");
+    }
+
+    @Test
+    void acceptedAccountDeletionClearsBrowserCredentials() {
+        var deletion = new com.jobseekercopilot.generated.authenticationservice.model.AccountDeletionResponse()
+                .operationId(java.util.UUID.fromString(
+                        "10000000-0000-4000-8000-000000000001"));
+        when(userManagementService.deleteAccount(
+                        "valid-token", "delete-request-0001"))
+                .thenReturn(deletion);
+        when(sessionCookies.clearSession(any(), same(deletion)))
+                .thenReturn(ResponseEntity.accepted().body(deletion));
+
+        var response = userManagementController.deleteAccount(
+                "delete-request-0001", authentication("valid-token"));
+
+        assertEquals(202, response.getStatusCodeValue());
+        assertSame(deletion, response.getBody());
+        verify(userManagementService).deleteAccount(
+                "valid-token", "delete-request-0001");
+        verify(sessionCookies).clearSession(any(), same(deletion));
+    }
+
     private BearerTokenAuthentication authentication(String token) {
         var principal = new DefaultOAuth2AuthenticatedPrincipal(
                 "user-123", java.util.Map.of("sub", "user-123"),

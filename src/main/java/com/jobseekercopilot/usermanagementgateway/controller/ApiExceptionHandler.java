@@ -12,6 +12,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Comparator;
@@ -64,6 +66,14 @@ public class ApiExceptionHandler {
             default -> ResponseEntity.status(status).body(
                     GatewayResponse.failure(status, "DOWNSTREAM_REQUEST_REJECTED", "The request was rejected."));
         };
+    }
+
+    @ExceptionHandler({ResourceAccessException.class, HttpServerErrorException.class})
+    ResponseEntity<GatewayResponse> downstreamUnavailable() {
+        return failure(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "DEPENDENCY_UNAVAILABLE",
+                "A required service is temporarily unavailable.");
     }
 
     @ExceptionHandler(Exception.class)

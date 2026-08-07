@@ -1,6 +1,7 @@
 package com.jobseekercopilot.usermanagementgateway.config;
 
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
+import com.jobseekercopilot.generated.authenticationservice.api.AccountLifecycleApi;
 import com.jobseekercopilot.generated.userprofileservice.api.EvidenceLibraryApi;
 import com.jobseekercopilot.generated.userprofileservice.api.UserProfilesApi;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +37,22 @@ public class DownstreamApiConfig {
         var apiClient = new com.jobseekercopilot.generated.authenticationservice.client.ApiClient(restTemplate);
         apiClient.setBasePath(basePath);
         return new AuthenticationApi(apiClient);
+    }
+
+    @Bean
+    AccountLifecycleApi accountLifecycleApi(
+            @Value("${authentication.service.url}") String basePath,
+            @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
+            AuthenticationServiceIdentityInterceptor serviceIdentityInterceptor,
+            @Qualifier("authenticationResilienceInterceptor") DownstreamResilienceInterceptor resilienceInterceptor,
+            @Value("${downstream.connect-timeout-ms}") int connectTimeoutMs,
+            @Value("${downstream.read-timeout-ms}") int readTimeoutMs) {
+        RestTemplate restTemplate = restTemplate(
+                correlationIdInterceptor, resilienceInterceptor, connectTimeoutMs, readTimeoutMs);
+        restTemplate.getInterceptors().add(0, serviceIdentityInterceptor);
+        var apiClient = new com.jobseekercopilot.generated.authenticationservice.client.ApiClient(restTemplate);
+        apiClient.setBasePath(basePath);
+        return new AccountLifecycleApi(apiClient);
     }
 
     @Bean
