@@ -207,8 +207,8 @@ public class UserManagementController {
 
     @PatchMapping(value = "/profile", consumes = "application/json", produces = "application/json")
     @Operation(
-            summary = "Update current profile preferences",
-            description = "Updates only current intentions and work preferences without replacing historical profile sections.")
+            summary = "Update job-search preferences and reusable skills",
+            description = "Updates current job-search preferences and canonical reusable skills without replacing versioned career evidence or legacy history. Omitted or null skills preserve the current catalogue; an explicit empty list clears it.")
     @SecurityRequirement(name = "browserSession")
     @Tag(name = "Profile")
     public ResponseEntity<GatewayResponse> updatePreferences(
