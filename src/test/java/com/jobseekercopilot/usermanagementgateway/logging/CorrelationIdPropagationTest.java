@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
@@ -33,6 +34,9 @@ class CorrelationIdPropagationTest {
         filter.doFilter(request, response, (servletRequest, servletResponse) ->
                 downstream.set(interceptedCorrelationId()));
 
+        assertEquals(
+                List.of("safe-correlation-123"),
+                response.getHeaders(CorrelationIdFilter.HEADER_NAME));
         assertEquals("safe-correlation-123", response.getHeader(CorrelationIdFilter.HEADER_NAME));
         assertEquals("safe-correlation-123", downstream.get());
         assertNull(MDC.get(CorrelationIdFilter.MDC_KEY));

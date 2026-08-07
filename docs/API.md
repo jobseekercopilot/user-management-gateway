@@ -1,6 +1,9 @@
 # User Management Gateway API
 
-This reference describes public contract `2.1.0`. It replaces the incompatible
+This reference describes public contract `3.0.0`. It preserves the
+cookie-session and ownership boundary introduced in version 2 while narrowing
+the three long-form Evidence Library write fields to the producer's 2,000
+character limit. It otherwise replaces the incompatible
 1.x browser bearer-token contract; see the
 [OpenAPI contract policy](OPENAPI_CONTRACT.md) for migration and pinning rules.
 
@@ -220,7 +223,9 @@ The browser-facing Evidence Library routes are:
 
 Writes forward `If-Match`; successful reads and mutations return the producer
 `ETag`. Entry, revision, fact and lifecycle schemas are generated from the
-pinned User Profile 1.2 contract. Browser callers cannot select an owner.
+exact pinned User Profile 2.0 producer contract. Evidence descriptions,
+responsibilities and achievements accept at most 2,000 characters on
+writes. Browser callers cannot select an owner.
 
 All JSON `POST`, `PUT` and `PATCH` bodies are limited to 65,536 bytes by
 default. Operators can set the positive `GATEWAY_REQUEST_MAXIMUM_BODY_BYTES`

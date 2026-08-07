@@ -8,11 +8,19 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
+
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 @Configuration
 public class DownstreamApiConfig {
+
+    @Bean
+    UserProfileAccessTokenContext userProfileAccessTokenContext() {
+        return new UserProfileAccessTokenContext();
+    }
 
     @Bean
     AuthenticationApi authenticationApi(
@@ -35,12 +43,14 @@ public class DownstreamApiConfig {
             @Value("${user.profile.service.url}") String basePath,
             @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
             @Qualifier("userProfileResilienceInterceptor") DownstreamResilienceInterceptor resilienceInterceptor,
+            UserProfileAccessTokenContext accessTokenContext,
             @Value("${downstream.connect-timeout-ms}") int connectTimeoutMs,
             @Value("${downstream.read-timeout-ms}") int readTimeoutMs) {
         RestTemplate restTemplate = restTemplate(
                 correlationIdInterceptor, resilienceInterceptor, connectTimeoutMs, readTimeoutMs);
         var apiClient = new com.jobseekercopilot.generated.userprofileservice.client.ApiClient(restTemplate);
         apiClient.setBasePath(basePath);
+        apiClient.setBearerToken(accessTokenContext::currentToken);
         return new UserProfilesApi(apiClient);
     }
 
@@ -49,12 +59,14 @@ public class DownstreamApiConfig {
             @Value("${user.profile.service.url}") String basePath,
             @Qualifier("correlationIdInterceptor") ClientHttpRequestInterceptor correlationIdInterceptor,
             @Qualifier("userProfileResilienceInterceptor") DownstreamResilienceInterceptor resilienceInterceptor,
+            UserProfileAccessTokenContext accessTokenContext,
             @Value("${downstream.connect-timeout-ms}") int connectTimeoutMs,
             @Value("${downstream.read-timeout-ms}") int readTimeoutMs) {
         RestTemplate restTemplate = restTemplate(
                 correlationIdInterceptor, resilienceInterceptor, connectTimeoutMs, readTimeoutMs);
         var apiClient = new com.jobseekercopilot.generated.userprofileservice.client.ApiClient(restTemplate);
         apiClient.setBasePath(basePath);
+        apiClient.setBearerToken(accessTokenContext::currentToken);
         return new EvidenceLibraryApi(apiClient);
     }
 
@@ -86,9 +98,11 @@ public class DownstreamApiConfig {
         if (connectTimeoutMs < 1 || readTimeoutMs < 1) {
             throw new IllegalArgumentException("Downstream timeouts must be positive");
         }
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(connectTimeoutMs);
-        requestFactory.setReadTimeout(readTimeoutMs);
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(connectTimeoutMs))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofMillis(readTimeoutMs));
         RestTemplate restTemplate = new RestTemplate(requestFactory);
         restTemplate.getInterceptors().add(correlationIdInterceptor);
         restTemplate.getInterceptors().add(resilienceInterceptor);

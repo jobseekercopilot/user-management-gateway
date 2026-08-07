@@ -1,5 +1,6 @@
 package com.jobseekercopilot.usermanagementgateway.controller;
 
+import com.jobseekercopilot.generated.userprofileservice.model.EvidenceEntry;
 import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
@@ -18,6 +19,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.DefaultOAuth2AuthenticatedPrincipal;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -117,6 +123,43 @@ class ControllerValidationIntegrationTest {
     }
 
     @Test
+    void rejectsEvidenceLongFormTextAboveThePinnedProducerMaximum() throws Exception {
+        String request = objectMapper.writeValueAsString(java.util.Map.of(
+                "category", "EMPLOYMENT",
+                "heading", "Example role",
+                "description", "x".repeat(2001)));
+
+        mockMvc.perform(post("/api/auth/evidence")
+                        .principal(bearerAuthentication("access-token"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("REQUEST_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.error.violations[0].field").value("description"))
+                .andExpect(jsonPath("$.error.violations[0].code").value("SIZE"));
+
+        verifyNoInteractions(userManagementService);
+    }
+
+    @Test
+    void acceptsEvidenceLongFormTextAtThePinnedProducerMaximum() throws Exception {
+        when(userManagementService.createEvidence(any(), any()))
+                .thenReturn(ResponseEntity.ok(new EvidenceEntry()));
+        String request = objectMapper.writeValueAsString(java.util.Map.of(
+                "category", "EMPLOYMENT",
+                "heading", "Example role",
+                "description", "x".repeat(2000)));
+
+        mockMvc.perform(post("/api/auth/evidence")
+                        .principal(bearerAuthentication("access-token"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isOk());
+
+        verify(userManagementService).createEvidence(any(), any());
+    }
+
+    @Test
     void normalizesLoginEmailWithoutChangingPassword() throws Exception {
         when(userManagementService.loginSession(any())).thenReturn(SessionOutcome.failure(
                 new GatewayResponse(200, true, "Logged in")));
@@ -203,5 +246,19 @@ class ControllerValidationIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested resource was not found."));
+    }
+
+    private BearerTokenAuthentication bearerAuthentication(String token) {
+        var principal = new DefaultOAuth2AuthenticatedPrincipal(
+                "user-123",
+                java.util.Map.of("sub", "user-123"),
+                java.util.List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        var accessToken = new OAuth2AccessToken(
+                OAuth2AccessToken.TokenType.BEARER,
+                token,
+                java.time.Instant.now(),
+                java.time.Instant.now().plusSeconds(60));
+        return new BearerTokenAuthentication(
+                principal, accessToken, principal.getAuthorities());
     }
 }
