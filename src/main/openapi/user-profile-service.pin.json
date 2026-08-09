@@ -3,11 +3,11 @@
   "repository": "jobseekercopilot/user-profile-service",
   "contractPath": "api/openapi.json",
   "contractVersion": "2.2.0",
-  "sourceRevision": "4e8c7c4c53bc89e97c76136d5633bbf1b93c3d55",
+  "sourceRevision": "fce8d0aac12b6b6010fa406582c8f69beb9947b2",
   "sha256": "f81c90a801ff877930304417be9bc7cdf2c39b2f2c61dc212b43b1cdf72dba75",
   "client": {
     "groupId": "com.jobseekercopilot.clients",
     "artifactId": "user-profile-service-client",
-    "version": "2.2.0-rev.4e8c7c4c53bc"
+    "version": "2.2.0-rev.fce8d0aac12b"
   }
 }
