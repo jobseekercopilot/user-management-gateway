@@ -13,6 +13,7 @@ import java.util.Set;
 import com.jobseekercopilot.generated.userprofileservice.model.EmploymentType;
 import com.jobseekercopilot.generated.userprofileservice.model.WorkingPattern;
 import com.jobseekercopilot.generated.userprofileservice.model.WorkplaceArrangement;
+import com.jobseekercopilot.generated.userprofileservice.model.CommuteTravelMode;
 
 @Getter
 @Setter
@@ -24,6 +25,17 @@ public class WorkPreferences {
     @Min(0)
     @Max(500)
     private Integer commuteRange;
+
+    @Size(max = 2)
+    private Set<CommuteTravelMode> commuteTravelModes;
+
+    @Min(5)
+    @Max(180)
+    private Integer maximumDrivingMinutes;
+
+    @Min(5)
+    @Max(180)
+    private Integer maximumTransitMinutes;
 
     @Size(max = 5)
     private Set<EmploymentType> employmentTypes;

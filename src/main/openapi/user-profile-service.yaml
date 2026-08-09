@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Job Seeker Copilot User Profile API",
-    "version": "2.0.0",
-    "description": "Producer-owned contract for authenticated current-user profile, versioned evidence and immutable purpose-bound snapshot operations."
+    "version": "2.2.0",
+    "description": "Producer-owned contract for authenticated current-user profile, personal-data export, versioned evidence and immutable purpose-bound snapshot operations."
   },
   "tags": [
     {
@@ -555,6 +555,32 @@
           "404": {"description": "Snapshot does not exist or is owned by another claimant"}
         }
       }
+    },
+    "/api/profiles/me/export": {
+      "get": {
+        "tags": ["User Profiles"],
+        "operationId": "exportMyProfileData",
+        "summary": "Export all profile-owned personal data for the authenticated user",
+        "description": "Returns a synchronous machine-readable export. No server-side export artifact is stored.",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Complete profile and evidence export",
+            "headers": {
+              "Cache-Control": {
+                "description": "Export responses are never stored by shared or browser caches",
+                "schema": {"type": "string", "example": "no-store"}
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProfilePersonalDataExport"}
+              }
+            }
+          },
+          "401": {"description": "Missing or invalid access token"}
+        }
+      }
     }
   },
   "components": {
@@ -607,6 +633,37 @@
       }
     },
     "schemas": {
+      "ProfilePersonalDataExport": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "generatedAt",
+          "evidenceEntries",
+          "evidenceSnapshots"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "enum": ["profile-personal-data.v1"]
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "profile": {
+            "nullable": true,
+            "allOf": [{"$ref": "#/components/schemas/UserProfile"}]
+          },
+          "evidenceEntries": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/EvidenceEntry"}
+          },
+          "evidenceSnapshots": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/EvidenceSnapshot"}
+          }
+        }
+      },
       "UserProfile": {
         "type": "object",
         "properties": {
@@ -707,6 +764,24 @@
             "minimum": 0,
             "maximum": 500
           },
+          "commuteTravelModes": {
+            "type": "array",
+            "maxItems": 2,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/CommuteTravelMode"
+            }
+          },
+          "maximumDrivingMinutes": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 180
+          },
+          "maximumTransitMinutes": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 180
+          },
           "employmentTypes": {
             "type": "array",
             "maxItems": 5,
@@ -796,9 +871,30 @@
           "REMOTE"
         ]
       },
+      "CommuteTravelMode": {
+        "type": "string",
+        "enum": [
+          "DRIVE",
+          "TRANSIT"
+        ]
+      },
       "PostcodeLocation": {
         "type": "object",
         "properties": {
+          "locationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "countryCode": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "pattern": "^[A-Z]{2}$"
+          },
           "postcode": {
             "type": "string",
             "maxLength": 16,
@@ -823,8 +919,51 @@
             "format": "double",
             "minimum": -180,
             "maximum": 180
+          },
+          "locationType": {
+            "$ref": "#/components/schemas/CanonicalLocationType"
+          },
+          "precision": {
+            "$ref": "#/components/schemas/LocationPrecision"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/LocationConfidence"
+          },
+          "googlePlaceId": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Provider reference only; Google display/address content is not persisted"
+          },
+          "postcodesIoPlaceId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "displayNameSource": {
+            "$ref": "#/components/schemas/LocationSource"
+          },
+          "postcodeSource": {
+            "$ref": "#/components/schemas/LocationSource"
+          },
+          "coordinatesSource": {
+            "$ref": "#/components/schemas/LocationSource"
           }
         }
+      },
+      "CanonicalLocationType": {
+        "type": "string",
+        "enum": ["POSTCODE", "LOCALITY", "ADDRESS", "WORKPLACE", "REMOTE", "UNKNOWN"]
+      },
+      "LocationPrecision": {
+        "type": "string",
+        "enum": ["EXACT_ADDRESS", "POSTCODE_CENTROID", "LOCALITY_CENTROID", "PROVIDER_COORDINATE", "NONE"]
+      },
+      "LocationConfidence": {
+        "type": "string",
+        "enum": ["VERIFIED", "PROVIDED", "INFERRED", "AMBIGUOUS", "UNKNOWN"]
+      },
+      "LocationSource": {
+        "type": "string",
+        "enum": ["GOOGLE_PLACES", "POSTCODES_IO", "JOB_PROVIDER", "USER", "LEGACY"]
       },
       "Qualification": {
         "type": "object",
@@ -1274,7 +1413,7 @@
             "type": "array",
             "minItems": 1,
             "maxItems": 50,
-            "description": "Ordered server-issued evidence entry IDs; fact or revision IDs are not accepted from the browser. The selected revisions may contain at most 50 facts in aggregate.",
+            "description": "Ordered server-issued evidence entry IDs; fact or revision IDs are not accepted from the browser. The selected revisions may contain at most 200 facts in aggregate.",
             "items": {
               "type": "string",
               "format": "uuid"
