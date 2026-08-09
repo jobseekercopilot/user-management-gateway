@@ -30,10 +30,10 @@ class UserProfileContractPinTest {
         assertEquals("jobseekercopilot/user-profile-service",
                 pin.path("repository").asText());
         assertEquals("api/openapi.json", pin.path("contractPath").asText());
-        assertEquals("2.0.0", pin.path("contractVersion").asText());
-        assertEquals("03d24c68342f86d573623541a4f8506acdf1b047",
+        assertEquals("2.2.0", pin.path("contractVersion").asText());
+        assertEquals("4e8c7c4c53bc89e97c76136d5633bbf1b93c3d55",
                 pin.path("sourceRevision").asText());
-        assertEquals("962254757585bfd1339df0ffdd3196a4b0b720f8dc16bc0f6c439dedb84771b8",
+        assertEquals("1e74f08ad044a144df2bafad3ef22d3b1ffde429dbdcc352cb5f1bdab5b87cc5",
                 pin.path("sha256").asText());
         assertEquals(pin.path("sha256").asText(), sha256(contractBytes));
         assertEquals(pin.path("contractVersion").asText(),
@@ -42,7 +42,7 @@ class UserProfileContractPinTest {
         JsonNode client = pin.path("client");
         assertEquals("com.jobseekercopilot.clients", client.path("groupId").asText());
         assertEquals("user-profile-service-client", client.path("artifactId").asText());
-        assertEquals("2.0.0-rev.03d24c68342f", client.path("version").asText());
+        assertEquals("2.2.0-rev.4e8c7c4c53bc", client.path("version").asText());
     }
 
     @Test

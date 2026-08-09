@@ -15,6 +15,12 @@ import jakarta.validation.constraints.Size;
 @AllArgsConstructor
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 public class PostcodeLocation {
+    @Size(max = 64)
+    private String locationId;
+    @Size(max = 200)
+    private String displayName;
+    @Size(max = 2)
+    private String countryCode;
     @Size(max = 16)
     private String postcode;
     @Size(max = 100)
@@ -27,4 +33,14 @@ public class PostcodeLocation {
     @DecimalMin("-180.0")
     @DecimalMax("180.0")
     private Double longitude;
+    private String locationType;
+    private String precision;
+    private String confidence;
+    @Size(max = 256)
+    private String googlePlaceId;
+    @Size(max = 128)
+    private String postcodesIoPlaceId;
+    private String displayNameSource;
+    private String postcodeSource;
+    private String coordinatesSource;
 }
