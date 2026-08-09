@@ -1,6 +1,7 @@
 package com.jobseekercopilot.usermanagementgateway.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,11 +34,16 @@ class UserProfileContractPinTest {
         assertEquals("2.2.0", pin.path("contractVersion").asText());
         assertEquals("4e8c7c4c53bc89e97c76136d5633bbf1b93c3d55",
                 pin.path("sourceRevision").asText());
-        assertEquals("1e74f08ad044a144df2bafad3ef22d3b1ffde429dbdcc352cb5f1bdab5b87cc5",
+        assertEquals("f81c90a801ff877930304417be9bc7cdf2c39b2f2c61dc212b43b1cdf72dba75",
                 pin.path("sha256").asText());
         assertEquals(pin.path("sha256").asText(), sha256(contractBytes));
         assertEquals(pin.path("contractVersion").asText(),
                 contract.path("info").path("version").asText());
+        JsonNode locationId = contract.at(
+                "/components/schemas/PostcodeLocation/properties/locationId");
+        assertEquals("uuid", locationId.path("format").asText());
+        assertFalse(locationId.has("maxLength"),
+                "UUID schemas must not generate incompatible @Size validation");
 
         JsonNode client = pin.path("client");
         assertEquals("com.jobseekercopilot.clients", client.path("groupId").asText());
