@@ -1,5 +1,13 @@
 # User Management Gateway
 
+## Role in Job Seeker Copilot
+
+| Role | Called by | Calls | Data | Local port |
+|---|---|---|---|---:|
+| Browser session and auth/profile/evidence facade | Client Express BFF | Authentication Service, User Profile Service | None | 8083 |
+
+See the central [account journey](https://docs.jobseekercopilot.com/journeys/account-authentication/), [gateway guide](https://docs.jobseekercopilot.com/services/frontend-gateways/), and [service catalogue](https://docs.jobseekercopilot.com/services/catalogue/).
+
 Spring Boot facade for registration, login, current-profile retrieval and
 profile update. It calls authentication-service and user-profile-service; it
 does not own location lookup.
