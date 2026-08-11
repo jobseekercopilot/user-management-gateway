@@ -12,7 +12,8 @@ Spring Boot facade for registration, login, current-profile retrieval and
 profile update. It calls authentication-service and user-profile-service; it
 does not own location lookup.
 
-> Beta status: not beta-ready. UMG-01 makes the gateway build reproducibly and
+> Delivery status: implemented and composed for the controlled private-beta
+> browser-session, profile and evidence journey. UMG-01 makes the gateway build reproducibly and
 > UMG-03 bounds downstream calls, UMG-04 validates requests and returns safe
 > errors, UMG-05 establishes the browser session boundary, and UMG-09 hardens
 > the runtime image, but the
