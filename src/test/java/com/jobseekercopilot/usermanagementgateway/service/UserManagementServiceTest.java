@@ -2,6 +2,7 @@ package com.jobseekercopilot.usermanagementgateway.service;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
@@ -222,12 +223,14 @@ class UserManagementServiceTest {
                 .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
                 .id("user-123").name("John Doe").email("john@test.com");
+        WorkPreferences preferences = new WorkPreferences();
+        preferences.setAvailableFrom(LocalDate.of(2026, 10, 1));
         UserProfile profile = new UserProfile(
             List.of("Java"),
             List.of(new Qualification()),
             List.of(new Role()),
             new Aspirations(),
-            new WorkPreferences()
+            preferences
         );
 
         when(authenticationApi.login(any())).thenReturn(loginResponse);
@@ -239,6 +242,8 @@ class UserManagementServiceTest {
         assertTrue(response.isSuccess(), response.getMessage());
         assertEquals(200, response.getStatusCode());
         assertNotNull(response.getUser());
+        assertEquals(LocalDate.of(2026, 10, 1),
+                response.getUser().getProfile().getWorkPreferences().getAvailableFrom());
     }
 
     @Test
@@ -437,7 +442,7 @@ class UserManagementServiceTest {
 
     private com.jobseekercopilot.generated.userprofileservice.model.UserProfile downstreamProfile(
             UserProfile profile) {
-        return new ObjectMapper().convertValue(
+        return new ObjectMapper().findAndRegisterModules().convertValue(
                 profile,
                 com.jobseekercopilot.generated.userprofileservice.model.UserProfile.class);
     }
