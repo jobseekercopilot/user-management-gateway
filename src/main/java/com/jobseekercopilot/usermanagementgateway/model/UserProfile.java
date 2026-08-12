@@ -44,6 +44,12 @@ public class UserProfile {
     @Valid
     private WorkPreferences workPreferences;
 
+    @Valid
+    @Schema(
+            accessMode = Schema.AccessMode.READ_ONLY,
+            description = "Private user-declared contact; update through the revision-aware professional-contact route")
+    private ProfessionalContact professionalContact;
+
     public UserProfile(
             List<String> skills,
             List<Qualification> qualifications,

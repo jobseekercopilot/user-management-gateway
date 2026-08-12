@@ -31,12 +31,14 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -157,6 +159,64 @@ class ControllerValidationIntegrationTest {
                 .andExpect(status().isOk());
 
         verify(userManagementService).createEvidence(any(), any());
+    }
+
+    @Test
+    void rejectsUnsafeProfessionalContactBeforeCallingDownstream() throws Exception {
+        mockMvc.perform(patch("/api/auth/profile/professional-contact")
+                        .principal(bearerAuthentication("access-token"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "phone": "+44 7700 900123",
+                                  "links": [
+                                    {"label": "Portfolio", "url": "http://example.test/portfolio"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("REQUEST_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.error.violations[0].field").value("links[0].url"))
+                .andExpect(jsonPath("$.error.violations[0].code").value("HTTPSURL"));
+
+        verifyNoInteractions(userManagementService);
+    }
+
+    @Test
+    void rejectsOwnershipFieldsFromProfessionalContactRequest() throws Exception {
+        mockMvc.perform(patch("/api/auth/profile/professional-contact")
+                        .principal(bearerAuthentication("access-token"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"userId":"other-user","phone":"+44 7700 900123","links":[]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("MALFORMED_JSON"));
+
+        verifyNoInteractions(userManagementService);
+    }
+
+    @Test
+    void rejectsUnboundedProfessionalContactBeforeCallingDownstream() throws Exception {
+        java.util.List<java.util.Map<String, String>> links =
+                java.util.stream.IntStream.range(0, 9)
+                        .mapToObj(index -> java.util.Map.of(
+                                "label", "Link " + index,
+                                "url", "https://example.test/profile/" + index))
+                        .toList();
+        String request = objectMapper.writeValueAsString(java.util.Map.of(
+                "phone", "1".repeat(41),
+                "links", links));
+
+        mockMvc.perform(patch("/api/auth/profile/professional-contact")
+                        .principal(bearerAuthentication("access-token"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("REQUEST_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.error.violations[*].field", hasItems("links", "phone")));
+
+        verifyNoInteractions(userManagementService);
     }
 
     @Test

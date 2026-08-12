@@ -37,7 +37,7 @@ class OpenApiExportTest {
         JsonNode root = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
-        assertEquals("3.0.0", root.at("/info/version").asText());
+        assertEquals("3.1.0", root.at("/info/version").asText());
         JsonNode session = root.at("/components/securitySchemes/browserSession");
         assertEquals("apiKey", session.path("type").asText());
         assertEquals("cookie", session.path("in").asText());
@@ -54,6 +54,32 @@ class OpenApiExportTest {
                 "200", "400", "401", "403", "404", "409", "413", "415", "429", "500", "503");
         assertTrue(root.at("/paths/~1api~1auth~1profile/patch/security").toString()
                 .contains("browserSession"));
+        JsonNode contactOperation = root.at(
+                "/paths/~1api~1auth~1profile~1professional-contact/patch");
+        assertProtectedProfileOperation(contactOperation,
+                "200", "400", "401", "403", "409", "413", "415", "429", "500", "503");
+        assertEquals("updateProfessionalContact", contactOperation.path("operationId").asText());
+        assertEquals(
+                "#/components/schemas/ProfessionalContact",
+                contactOperation.at("/requestBody/content/application~1json/schema/$ref").asText());
+        assertTrue(contactOperation.path("parameters").toString().contains("If-Match"));
+        assertFalse(contactOperation.path("parameters").toString().contains("userId"));
+        assertEquals(8, root.at(
+                "/components/schemas/ProfessionalContact/properties/links/maxItems").asInt());
+        assertEquals(40, root.at(
+                "/components/schemas/ProfessionalContact/properties/phone/maxLength").asInt());
+        assertEquals("^https://", root.at(
+                "/components/schemas/ProfessionalLink/properties/url/pattern").asText());
+        assertEquals(1, root.at(
+                "/components/schemas/ProfessionalLink/properties/label/minLength").asInt());
+        assertEquals(512, root.at(
+                "/components/schemas/ProfessionalLink/properties/url/maxLength").asInt());
+        assertTrue(root.at(
+                "/components/schemas/UserProfile/properties/professionalContact/readOnly").asBoolean());
+        assertTrue(root.at("/components/schemas/ProfessionalLink/required").toString()
+                .contains("label"));
+        assertTrue(root.at("/components/schemas/ProfessionalLink/required").toString()
+                .contains("url"));
         assertTrue(root.at("/paths/~1api~1auth~1evidence/get/security").toString()
                 .contains("browserSession"));
         assertTrue(root.at("/paths/~1api~1auth~1evidence/post/security").toString()
@@ -94,7 +120,8 @@ class OpenApiExportTest {
         assertStringConstraint(root, "LoginRequest", "password", 1, 128, "password", "exactly");
 
         for (String schema : List.of("RegisterRequest", "LoginRequest", "UserProfile",
-                "Aspirations", "WorkPreferences", "PostcodeLocation", "Qualification", "Role")) {
+                "Aspirations", "WorkPreferences", "PostcodeLocation", "Qualification", "Role",
+                "ProfessionalContact", "ProfessionalLink")) {
             JsonNode additionalProperties = root.at("/components/schemas/" + schema
                     + "/additionalProperties");
             assertTrue(additionalProperties.isBoolean(), schema);

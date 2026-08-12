@@ -29,6 +29,7 @@ class DocumentationContractTest {
             "GET /api/auth/evidence/{entryId}",
             "GET /api/auth/profile",
             "PATCH /api/auth/profile",
+            "PATCH /api/auth/profile/professional-contact",
             "POST /api/auth/evidence",
             "POST /api/auth/evidence/{entryId}/archive",
             "POST /api/auth/evidence/{entryId}/confirm",

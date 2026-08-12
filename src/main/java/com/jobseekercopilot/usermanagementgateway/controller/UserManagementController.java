@@ -263,6 +263,47 @@ public class UserManagementController {
         return builder.body(response);
     }
 
+    @PatchMapping(
+            value = "/profile/professional-contact",
+            consumes = "application/json",
+            produces = "application/json")
+    @Operation(
+            operationId = "updateProfessionalContact",
+            summary = "Replace current user professional contact",
+            description = "Stores only explicitly user-declared phone and labelled HTTPS professional links. Ownership is derived from the HttpOnly browser session; callers cannot select another user.")
+    @SecurityRequirement(name = "browserSession")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Professional contact saved"),
+            @ApiResponse(responseCode = "400", description = "Professional contact validation failed", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Browser session missing, invalid or expired", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "403", description = "CSRF validation failed", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Stale profile revision", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "413", description = "Request body too large", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "415", description = "Unsupported media type", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "429", description = "Authentication rate limited", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected internal failure", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "503", description = "Dependency unavailable", content = @Content(schema = @Schema(implementation = GatewayResponse.class)))
+    })
+    @Tag(name = "Profile")
+    public ResponseEntity<GatewayResponse> updateProfessionalContact(
+            @Valid @RequestBody ProfessionalContact contact,
+            @io.swagger.v3.oas.annotations.Parameter(
+                    description = "Optional quoted current profile revision for optimistic concurrency",
+                    schema = @Schema(pattern = "^\\\"?[0-9]+\\\"?$"))
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            BearerTokenAuthentication authentication) {
+        GatewayResponse response = userManagementService.updateProfessionalContact(
+                contact, authentication.getToken().getTokenValue(), ifMatch);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(response.getStatusCode());
+        if (response.isSuccess()
+                && response.getUser() != null
+                && response.getUser().getProfile() != null
+                && response.getUser().getProfile().getRevision() != null) {
+            builder.eTag(Long.toString(response.getUser().getProfile().getRevision()));
+        }
+        return builder.body(response);
+    }
+
     @GetMapping(value = "/evidence", produces = "application/json")
     @Operation(summary = "List current claimant evidence")
     @SecurityRequirement(name = "browserSession")

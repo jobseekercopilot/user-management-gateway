@@ -59,6 +59,7 @@ correlation propagation, dashboard panels and initial alert thresholds.
 | `GET` | `/api/auth/profile` | Access cookie | Read the current user's profile |
 | `PUT` | `/api/auth/profile` | Access cookie + CSRF | Replace the current user's profile |
 | `PATCH` | `/api/auth/profile` | Access cookie + CSRF | Progressively update current preferences |
+| `PATCH` | `/api/auth/profile/professional-contact` | Access cookie + CSRF | Replace private user-declared phone and labelled HTTPS professional links |
 | `GET` | `/api/auth/evidence` | Access cookie | List evidence, optionally including archived entries |
 | `GET` | `/api/auth/evidence/{entryId}` | Access cookie | Read one claimant-owned evidence entry |
 | `POST` | `/api/auth/evidence` | Access cookie + CSRF | Create a draft evidence entry |

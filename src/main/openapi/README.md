@@ -8,7 +8,10 @@ The authentication contract carries `x-source-repository` and
 `x-source-revision` fields. The User Profile input is an exact byte-for-byte
 copy of the producer-owned contract and its separate `.pin.json` records the
 repository, source revision, digest and published client coordinate. A build
-test verifies all of that provenance. When a downstream API changes:
+test verifies all of that provenance. The current reviewed User Profile input
+is contract `2.3.0`, source revision
+`a880add6e5c7106a2f3abec08a147823f88edf20`, including the owner-scoped
+professional-contact operation and schemas. When a downstream API changes:
 
 1. export `/v3/api-docs` from a clean checkout of that approved repository;
 2. review the user-management operations and schemas against this consumer
