@@ -2,13 +2,16 @@
 
 ## Public contract version
 
-The current browser-facing contract is `3.0.0`. Version 3 preserves the
+The current browser-facing contract is `3.1.0`. Version 3 preserves the
 gateway-owned HttpOnly access/refresh cookies, CSRF-protected writes and
 subject-bound profile operations introduced in version 2, and coordinates the
 producer's breaking reduction of the Evidence Library description,
 responsibilities and achievements write limits from 4,000 to 2,000
-characters. A 1.x or 2.x client must not be relabelled as version 3 without
-regeneration.
+characters. Version 3.1 additively exposes the private professional-contact
+write through an owner-scoped route with bounded phone/link schemas and
+optimistic concurrency. A 1.x or 2.x client must not be relabelled as version
+3 without regeneration; a 3.0 client must regenerate before using the new
+3.1 operation.
 
 Consumers must pin both the semantic contract version and the exact source
 revision that produced the reviewed OpenAPI document. A breaking public schema,
@@ -24,6 +27,15 @@ HttpOnly cookies and derives the current user through authentication-service;
 profile operations have no email, user-ID, authorization-header or owner
 parameter. State-changing operations also require the CSRF header described in
 the API reference.
+
+`PATCH /api/auth/profile/professional-contact` accepts only user-declared phone
+and labelled HTTPS professional links, forwards `If-Match`, and returns the
+resulting profile revision as `ETag`. Its public DTO is gateway-owned and
+validated before mapping to the exact generated User Profile 2.3 producer
+model. Neither the request nor the generated downstream operation has an owner
+selector. `UserProfile.professionalContact` is read-only at the public gateway
+boundary, and the legacy full-profile mapper omits it so that route cannot
+bypass optimistic concurrency.
 
 Every documented non-success response uses `GatewayResponse` containing the
 versioned `ApiError` schema. Error codes/messages and field/code violations are
@@ -43,6 +55,7 @@ required status codes and stable error-schema references. Controller tests
 prove unknown input fails before any downstream service call.
 The export assertions also pin the already-enforced registration/login name,
 email and password bounds and the producer-aligned Evidence Library write
-bounds. Registration and login string lengths use Unicode code points;
+bounds. They also pin the professional-contact operation, HTTPS-link bounds,
+cookie ownership and absence of owner selectors. Registration and login string lengths use Unicode code points;
 password descriptions state that the supplied value is forwarded exactly so
 consumers cannot silently trim or normalise a credential.

@@ -90,6 +90,7 @@ class GatewaySecurityIntegrationTest {
         }
         for (String path : List.of(
                 "/api/auth/profile",
+                "/api/auth/profile/professional-contact",
                 "/api/auth/evidence/00000000-0000-0000-0000-000000000001")) {
             mockMvc.perform(patch(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isForbidden());
@@ -212,6 +213,48 @@ class GatewaySecurityIntegrationTest {
                 .andExpect(jsonPath("$.user.id").value("user-123"));
 
         verify(userProfilesApi).getMyProfile();
+        verify(userProfileAccessTokenContext).withToken(eq("valid-access"), any());
+        verify(userProfileAccessTokenContext, never()).withToken(
+                contains("browser-forgery"), any());
+        verify(userProfileAccessTokenContext, never()).withToken(contains("victim"), any());
+    }
+
+    @Test
+    void professionalContactPatchUsesOnlyCookieOwnerAndForwardsIfMatch() throws Exception {
+        when(authenticationApi.getCurrentUser("Bearer valid-access")).thenReturn(account());
+        var contact = new com.jobseekercopilot.generated.userprofileservice.model.ProfessionalContact()
+                .phone("+44 7700 900123")
+                .links(List.of(new com.jobseekercopilot.generated.userprofileservice.model.ProfessionalLink()
+                        .label("Portfolio")
+                        .url("https://example.test/portfolio")));
+        var updated = new com.jobseekercopilot.generated.userprofileservice.model.UserProfile(
+                        null, "user-123", 4L, null, null)
+                .professionalContact(contact);
+        when(userProfilesApi.updateMyProfessionalContact(any(), eq("\"3\"")))
+                .thenReturn(updated);
+
+        mockMvc.perform(patch("/api/auth/profile/professional-contact")
+                        .with(csrf().asHeader())
+                        .cookie(new Cookie("jsc-access-local", "valid-access"))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer browser-forgery")
+                        .header("X-User-Id", "victim")
+                        .header(HttpHeaders.IF_MATCH, "\"3\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "phone": "+44 7700 900123",
+                                  "links": [
+                                    {"label":"Portfolio","url":"https://example.test/portfolio"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ETAG, "\"4\""))
+                .andExpect(jsonPath("$.user.id").value("user-123"))
+                .andExpect(jsonPath("$.user.profile.professionalContact.phone")
+                        .value("+44 7700 900123"));
+
+        verify(userProfilesApi).updateMyProfessionalContact(any(), eq("\"3\""));
         verify(userProfileAccessTokenContext).withToken(eq("valid-access"), any());
         verify(userProfileAccessTokenContext, never()).withToken(
                 contains("browser-forgery"), any());

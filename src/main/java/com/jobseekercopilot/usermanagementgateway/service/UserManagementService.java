@@ -26,6 +26,7 @@ import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.PasswordResetCompletionRequest;
 import com.jobseekercopilot.usermanagementgateway.model.PasswordResetRequest;
+import com.jobseekercopilot.usermanagementgateway.model.ProfessionalContact;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
 import com.jobseekercopilot.usermanagementgateway.model.User;
 import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
@@ -323,6 +324,55 @@ public class UserManagementService implements IUserManagementService {
             return downstreamRejected(exception);
         } catch (Exception exception) {
             log.error("profile preference update failed error={}", exception.getClass().getSimpleName());
+            return internalError();
+        }
+    }
+
+    public GatewayResponse updateProfessionalContact(
+            ProfessionalContact contact,
+            String token,
+            String ifMatch) {
+        if (contact == null || token == null || token.isBlank()) {
+            return invalidRequest();
+        }
+        try {
+            var userAccount = getUser(token);
+            var downstreamRequest = new com.jobseekercopilot.generated.userprofileservice.model.ProfessionalContact()
+                    .phone(contact.getPhone())
+                    .links(contact.getLinks() == null
+                            ? null
+                            : contact.getLinks().stream()
+                                    .map(link -> new com.jobseekercopilot.generated.userprofileservice.model.ProfessionalLink()
+                                            .label(link.getLabel())
+                                            .url(link.getUrl()))
+                                    .toList());
+            var downstream = userProfileAccessTokenContext.withToken(
+                    token,
+                    () -> userProfilesApi.updateMyProfessionalContact(
+                            downstreamRequest, ifMatch));
+            UserProfile profile = objectMapper.convertValue(downstream, UserProfile.class);
+            User user = new User(
+                    userAccount.getId(), userAccount.getName(), userAccount.getEmail(), profile);
+            return new GatewayResponse(
+                    200, true, "Professional contact updated successfully.", user);
+        } catch (HttpClientErrorException.Conflict exception) {
+            return GatewayResponse.failure(
+                    409,
+                    "PROFILE_REVISION_CONFLICT",
+                    "The profile changed; refresh it and try again.");
+        } catch (HttpServerErrorException exception) {
+            log.warn("professional contact update dependency failed status={}",
+                    exception.getStatusCode().value());
+            return dependencyUnavailable();
+        } catch (ResourceAccessException exception) {
+            log.warn("professional contact update dependency unavailable error={}",
+                    exception.getClass().getSimpleName());
+            return dependencyUnavailable();
+        } catch (HttpClientErrorException exception) {
+            return downstreamRejected(exception);
+        } catch (Exception exception) {
+            log.error("professional contact update failed error={}",
+                    exception.getClass().getSimpleName());
             return internalError();
         }
     }
@@ -628,6 +678,9 @@ public class UserManagementService implements IUserManagementService {
         var downstreamRequest = objectMapper.convertValue(
                 profile,
                 com.jobseekercopilot.generated.userprofileservice.model.UserProfile.class);
+        // Professional contact has a dedicated optimistic-concurrency route. Do not
+        // let the legacy full-profile write silently replace it.
+        downstreamRequest.setProfessionalContact(null);
         var downstreamResponse = userProfileAccessTokenContext.withToken(
                 accessToken,
                 () -> userProfilesApi.createOrUpdateMyProfile(downstreamRequest, null));

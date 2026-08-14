@@ -17,6 +17,7 @@ import com.jobseekercopilot.usermanagementgateway.model.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -113,6 +114,68 @@ class UserManagementServiceTest {
         assertTrue(response.isSuccess());
         assertEquals(List.of("Java"), response.getUser().getProfile().getSkills());
         verify(userProfilesApi).updateMyPreferences(update, "\"3\"");
+    }
+
+    @Test
+    void updateProfessionalContact_ForwardsOwnerSessionRevisionAndBoundedContact() {
+        ProfessionalContact contact = new ProfessionalContact();
+        contact.setPhone("+44 7700 900123");
+        contact.setLinks(List.of(new ProfessionalLink(
+                "Portfolio", "https://example.test/portfolio")));
+        var account = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
+                .id("user-123").name("Example User").email("user@example.test");
+        var downstreamContact = new com.jobseekercopilot.generated.userprofileservice.model.ProfessionalContact()
+                .phone("+44 7700 900123")
+                .links(List.of(new com.jobseekercopilot.generated.userprofileservice.model.ProfessionalLink()
+                        .label("Portfolio")
+                        .url("https://example.test/portfolio")));
+        var downstream = new com.jobseekercopilot.generated.userprofileservice.model.UserProfile(
+                        null, "user-123", 4L, null, null)
+                .professionalContact(downstreamContact);
+        when(authenticationApi.getCurrentUser("Bearer claimant-token")).thenReturn(account);
+        when(userProfilesApi.updateMyProfessionalContact(any(), eq("\"3\"")))
+                .thenReturn(downstream);
+
+        GatewayResponse response = userManagementService.updateProfessionalContact(
+                contact, "claimant-token", "\"3\"");
+
+        assertTrue(response.isSuccess());
+        assertEquals(4L, response.getUser().getProfile().getRevision());
+        assertEquals("+44 7700 900123",
+                response.getUser().getProfile().getProfessionalContact().getPhone());
+        assertEquals("https://example.test/portfolio",
+                response.getUser().getProfile().getProfessionalContact().getLinks().get(0).getUrl());
+        ArgumentCaptor<com.jobseekercopilot.generated.userprofileservice.model.ProfessionalContact>
+                downstreamRequest = ArgumentCaptor.forClass(
+                        com.jobseekercopilot.generated.userprofileservice.model.ProfessionalContact.class);
+        verify(userProfilesApi).updateMyProfessionalContact(
+                downstreamRequest.capture(), eq("\"3\""));
+        assertEquals("+44 7700 900123", downstreamRequest.getValue().getPhone());
+        assertEquals("Portfolio", downstreamRequest.getValue().getLinks().get(0).getLabel());
+        verify(userProfileAccessTokenContext).withToken(eq("claimant-token"), any());
+    }
+
+    @Test
+    void updateProfessionalContact_MapsStaleRevisionWithoutLeakingDownstreamDetail() {
+        ProfessionalContact contact = new ProfessionalContact();
+        var account = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
+                .id("user-123").name("Example User").email("user@example.test");
+        when(authenticationApi.getCurrentUser("Bearer claimant-token")).thenReturn(account);
+        when(userProfilesApi.updateMyProfessionalContact(any(), eq("\"2\"")))
+                .thenThrow(HttpClientErrorException.create(
+                        HttpStatus.CONFLICT,
+                        "private revision detail",
+                        HttpHeaders.EMPTY,
+                        new byte[0],
+                        java.nio.charset.StandardCharsets.UTF_8));
+
+        GatewayResponse response = userManagementService.updateProfessionalContact(
+                contact, "claimant-token", "\"2\"");
+
+        assertFalse(response.isSuccess());
+        assertEquals(409, response.getStatusCode());
+        assertEquals("PROFILE_REVISION_CONFLICT", response.getError().code());
+        assertFalse(response.getMessage().contains("private"));
     }
 
     @Test
@@ -430,6 +493,26 @@ class UserManagementServiceTest {
 
         assertTrue(response.isSuccess(), response.getMessage());
         assertEquals(200, response.getStatusCode());
+    }
+
+    @Test
+    void updateProfile_DoesNotBypassRevisionAwareProfessionalContactRoute() {
+        String token = "valid-token";
+        UserProfile profile = new UserProfile(
+                List.of("Kotlin"), List.of(), List.of(), null, null);
+        ProfessionalContact contact = new ProfessionalContact();
+        contact.setPhone("+44 7700 900123");
+        profile.setProfessionalContact(contact);
+        var account = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
+                .id("user-123").name("Example User").email("user@example.test");
+        when(authenticationApi.getCurrentUser("Bearer " + token)).thenReturn(account);
+        when(userProfilesApi.createOrUpdateMyProfile(any(), isNull()))
+                .thenReturn(downstreamProfile(profile));
+
+        userManagementService.updateProfile(profile, token);
+
+        verify(userProfilesApi).createOrUpdateMyProfile(
+                argThat(candidate -> candidate.getProfessionalContact() == null), isNull());
     }
 
     @Test

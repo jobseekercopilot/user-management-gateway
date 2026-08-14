@@ -3,6 +3,8 @@ package com.jobseekercopilot.usermanagementgateway.controller;
 import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
+import com.jobseekercopilot.usermanagementgateway.model.ProfessionalContact;
+import com.jobseekercopilot.usermanagementgateway.model.User;
 import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
 import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry;
 import com.jobseekercopilot.usermanagementgateway.observability.GatewayTelemetry.UserOperation;
@@ -104,6 +106,32 @@ class UserManagementControllerTest {
         assertTrue(response.getBody().isSuccess());
         verify(userManagementService, times(1)).updateProfile(profile, token);
         verify(telemetry).record(eq(UserOperation.PROFILE_UPDATE), same(serviceResponse), anyLong());
+    }
+
+    @Test
+    void updateProfessionalContact_ForwardsSessionAndRevisionAndReturnsNewEtag() {
+        ProfessionalContact contact = new ProfessionalContact();
+        UserProfile profile = new UserProfile();
+        profile.setRevision(4L);
+        profile.setProfessionalContact(contact);
+        GatewayResponse serviceResponse = new GatewayResponse(
+                200,
+                true,
+                "Professional contact updated successfully.",
+                new User("user-123", "Example User", "user@example.test", profile));
+        when(userManagementService.updateProfessionalContact(
+                contact, "valid-token", "\"3\""))
+                .thenReturn(serviceResponse);
+
+        ResponseEntity<GatewayResponse> response =
+                userManagementController.updateProfessionalContact(
+                        contact, "\"3\"", authentication("valid-token"));
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertSame(serviceResponse, response.getBody());
+        assertEquals("\"4\"", response.getHeaders().getETag());
+        verify(userManagementService).updateProfessionalContact(
+                contact, "valid-token", "\"3\"");
     }
 
     @Test

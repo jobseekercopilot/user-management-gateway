@@ -1,9 +1,9 @@
 # User Management Gateway API
 
-This reference describes public contract `3.0.0`. It preserves the
-cookie-session and ownership boundary introduced in version 2 while narrowing
-the three long-form Evidence Library write fields to the producer's 2,000
-character limit. It otherwise replaces the incompatible
+This reference describes public contract `3.1.0`. It preserves the
+cookie-session and ownership boundary introduced in version 2, the version 3
+Evidence Library write limits, and adds an owner-scoped professional-contact
+update without exposing personal contact to caller-selected identities. It otherwise replaces the incompatible
 1.x browser bearer-token contract; see the
 [OpenAPI contract policy](OPENAPI_CONTRACT.md) for migration and pinning rules.
 
@@ -205,6 +205,36 @@ It preserves roles and qualifications and accepts the current profile revision
 in `If-Match`. Employment types, working patterns and workplace arrangements
 use the producer-defined enums. Availability is explicitly claimant-selected:
 `availableFrom` and `noticePeriodDays` are optional and mutually exclusive.
+
+## Professional contact
+
+`PATCH /api/auth/profile/professional-contact` replaces only the authenticated
+owner's private, user-declared professional contact. It requires the access
+cookie and CSRF header, and forwards the optional current profile revision in
+`If-Match`:
+
+```json
+{
+  "phone": "+44 7700 900123",
+  "links": [
+    {
+      "label": "Portfolio",
+      "url": "https://example.test/portfolio"
+    }
+  ]
+}
+```
+
+Phone is optional, contains 7–15 digits using conventional telephone
+punctuation, and is at most 40 characters. At most eight links are accepted;
+each has a 1–40 character label and an absolute credential-free HTTPS URL of
+at most 512 characters. An empty JSON object clears the saved professional contact.
+The request has no owner field: the gateway derives ownership from its
+HttpOnly access cookie and the profile service repeats that subject-bound
+check. Success returns the updated profile and its new revision in `ETag`.
+The gateway does not infer these fields from uploaded CVs and does not log
+their values. The legacy full-profile `PUT` treats this response field as
+read-only so callers cannot bypass this revision-aware route.
 
 ## Evidence Library
 
