@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -28,6 +29,7 @@ import com.jobseekercopilot.usermanagementgateway.model.PasswordResetCompletionR
 import com.jobseekercopilot.usermanagementgateway.model.PasswordResetRequest;
 import com.jobseekercopilot.usermanagementgateway.model.ProfessionalContact;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
+import com.jobseekercopilot.usermanagementgateway.model.RegistrationLegalRequirements;
 import com.jobseekercopilot.usermanagementgateway.model.User;
 import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
 import com.jobseekercopilot.usermanagementgateway.model.Qualification;
@@ -44,6 +46,8 @@ public class UserManagementService implements IUserManagementService {
 
     private static final Logger log = LoggerFactory.getLogger(UserManagementService.class);
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    private static final Pattern LEGAL_VERSION =
+            Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,63}");
 
     @Autowired
     private AuthenticationApi authenticationApi;
@@ -83,7 +87,12 @@ public class UserManagementService implements IUserManagementService {
 
         if (!hasCodePointLength(name, 1, 100)
                 || !hasCodePointLength(email, 1, 254) || !EMAIL.matcher(email).matches()
-                || !hasCodePointLength(password, 15, 128)) {
+                || !hasCodePointLength(password, 15, 128)
+                || !request.isTermsAccepted()
+                || !request.isPrivacyNoticeAcknowledged()
+                || !request.isAgeEligibilityConfirmed()
+                || request.getLegalVersion() == null
+                || !LEGAL_VERSION.matcher(request.getLegalVersion()).matches()) {
             return SessionOutcome.failure(invalidRequest());
         }
 
@@ -91,7 +100,13 @@ public class UserManagementService implements IUserManagementService {
             long registerStartedAt = System.nanoTime();
             log.info("Calling authentication-service register");
             authenticationApi.register(new com.jobseekercopilot.generated.authenticationservice.model.RegisterRequest()
-                    .name(name).email(email).password(password));
+                    .name(name)
+                    .email(email)
+                    .password(password)
+                    .termsAccepted(request.isTermsAccepted())
+                    .privacyNoticeAcknowledged(request.isPrivacyNoticeAcknowledged())
+                    .ageEligibilityConfirmed(request.isAgeEligibilityConfirmed())
+                    .legalVersion(request.getLegalVersion()));
             log.info("authentication-service register returned durationMs={}",
                     (System.nanoTime() - registerStartedAt) / 1_000_000);
 
@@ -128,6 +143,13 @@ public class UserManagementService implements IUserManagementService {
             log.warn("user-management-gateway registration failed status={} durationMs={}",
                     ex.getStatusCode().value(),
                     (System.nanoTime() - startedAt) / 1_000_000);
+            if (ex.getStatusCode().value() == 409
+                    && hasDownstreamCode(ex, "LEGAL_VERSION_OUTDATED")) {
+                return SessionOutcome.failure(GatewayResponse.failure(
+                        409,
+                        "LEGAL_VERSION_OUTDATED",
+                        "The legal terms changed. Review the current documents and try again."));
+            }
             return SessionOutcome.failure(downstreamRejected(ex));
         } catch (Exception ex) {
             log.error("user-management-gateway registration failed durationMs={} error={}",
@@ -502,6 +524,29 @@ public class UserManagementService implements IUserManagementService {
         }
     }
 
+    public RegistrationLegalRequirements getRegistrationLegalRequirements() {
+        long startedAt = System.nanoTime();
+        log.info("Calling authentication-service registration requirements");
+        try {
+            var downstream = authenticationApi.getRegistrationLegalRequirements();
+            RegistrationLegalRequirements requirements =
+                    RegistrationLegalRequirements.from(downstream);
+            log.info("authentication-service registration requirements returned durationMs={}",
+                    (System.nanoTime() - startedAt) / 1_000_000);
+            return requirements;
+        } catch (IllegalArgumentException exception) {
+            log.error("authentication-service registration requirements contract rejected durationMs={}",
+                    (System.nanoTime() - startedAt) / 1_000_000);
+            throw exception;
+        } catch (RestClientException exception) {
+            log.warn("authentication-service registration requirements unavailable durationMs={} error={}",
+                    (System.nanoTime() - startedAt) / 1_000_000,
+                    exception.getClass().getSimpleName());
+            throw new ResourceAccessException(
+                    "Registration requirements are temporarily unavailable");
+        }
+    }
+
     public GatewayResponse completePasswordReset(PasswordResetCompletionRequest request) {
         if (request == null
                 || !hasCodePointLength(request.getToken(), 32, 128)
@@ -549,6 +594,18 @@ public class UserManagementService implements IUserManagementService {
                     "Too many authentication attempts. Try again later.");
             default -> GatewayResponse.failure(status, "DOWNSTREAM_REQUEST_REJECTED", "The request was rejected.");
         };
+    }
+
+    private boolean hasDownstreamCode(
+            HttpClientErrorException exception, String expectedCode) {
+        try {
+            return expectedCode.equals(objectMapper
+                    .readTree(exception.getResponseBodyAsByteArray())
+                    .path("code")
+                    .asText());
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private GatewayResponse dependencyUnavailable() {

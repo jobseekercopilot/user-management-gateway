@@ -31,6 +31,7 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -79,7 +80,9 @@ class ControllerValidationIntegrationTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"Example User","email":"user@example.test","password":"too-short"}
+                                {"name":"Example User","email":"user@example.test","password":"too-short",
+                                 "termsAccepted":true,"privacyNoticeAcknowledged":true,
+                                 "ageEligibilityConfirmed":true,"legalVersion":"2026-08-15"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.schemaVersion").value("1"))
@@ -98,7 +101,9 @@ class ControllerValidationIntegrationTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":" Example User ","email":" user@example.test ","password":"🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱"}
+                                {"name":" Example User ","email":" user@example.test ","password":"🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱",
+                                 "termsAccepted":true,"privacyNoticeAcknowledged":true,
+                                 "ageEligibilityConfirmed":true,"legalVersion":"2026-08-15"}
                                 """))
                 .andExpect(status().isCreated());
 
@@ -106,6 +111,27 @@ class ControllerValidationIntegrationTest {
         verify(userManagementService).registerSession(request.capture());
         assertEquals("Example User", request.getValue().getName());
         assertEquals("user@example.test", request.getValue().getEmail());
+        assertTrue(request.getValue().isTermsAccepted());
+        assertTrue(request.getValue().isPrivacyNoticeAcknowledged());
+        assertTrue(request.getValue().isAgeEligibilityConfirmed());
+        assertEquals("2026-08-15", request.getValue().getLegalVersion());
+    }
+
+    @Test
+    void rejectsRegistrationUnlessEveryLegalAcknowledgementIsExplicit() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Example User","email":"user@example.test",
+                                 "password":"A valid local passphrase 2026!",
+                                 "termsAccepted":false,"privacyNoticeAcknowledged":true,
+                                 "ageEligibilityConfirmed":true,"legalVersion":"2026-08-15"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("REQUEST_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.error.violations[0].field").value("termsAccepted"));
+
+        verifyNoInteractions(userManagementService);
     }
 
     @Test
@@ -115,7 +141,9 @@ class ControllerValidationIntegrationTest {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"name":"Example User","email":"user@example.test","password":"%s"}
+                                {"name":"Example User","email":"user@example.test","password":"%s",
+                                 "termsAccepted":true,"privacyNoticeAcknowledged":true,
+                                 "ageEligibilityConfirmed":true,"legalVersion":"2026-08-15"}
                                 """.formatted(password)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("REQUEST_VALIDATION_FAILED"))

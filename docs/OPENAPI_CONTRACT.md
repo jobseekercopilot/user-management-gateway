@@ -2,16 +2,14 @@
 
 ## Public contract version
 
-The current browser-facing contract is `3.1.0`. Version 3 preserves the
+The current browser-facing contract is `4.0.0`. Version 4 preserves the
 gateway-owned HttpOnly access/refresh cookies, CSRF-protected writes and
-subject-bound profile operations introduced in version 2, and coordinates the
-producer's breaking reduction of the Evidence Library description,
-responsibilities and achievements write limits from 4,000 to 2,000
-characters. Version 3.1 additively exposes the private professional-contact
-write through an owner-scoped route with bounded phone/link schemas and
-optimistic concurrency. A 1.x or 2.x client must not be relabelled as version
-3 without regeneration; a 3.0 client must regenerate before using the new
-3.1 operation.
+subject-bound profile operations from earlier versions. It requires explicit
+terms, privacy-notice and minimum-age acknowledgements against the exact
+server-published legal version during registration. Version 4 also retains the
+version 3 Evidence Library limits and owner-scoped professional-contact route.
+Earlier clients must regenerate and present the reviewed acknowledgements;
+they must not silently invent or default legal consent.
 
 Consumers must pin both the semantic contract version and the exact source
 revision that produced the reviewed OpenAPI document. A breaking public schema,
@@ -20,7 +18,12 @@ additions and fixes require deliberate minor/patch updates with contract-test
 evidence. Runtime implementation versions are independent of this public API
 version.
 
-CSRF bootstrap, registration and login do not require an existing session.
+CSRF bootstrap, registration requirements, registration and login do not
+require an existing session. `GET /api/auth/registration-requirements` returns
+the reviewed legal version, exact HTTPS Terms and Privacy URLs and minimum age;
+the response is non-cacheable. The gateway retrieves this contract from the
+service-authenticated Authentication API and rejects malformed or unavailable
+requirements rather than publishing placeholders.
 Profile read/update and logout declare the OpenAPI cookie scheme
 `browserSession`; refresh declares `browserRefresh`. The gateway owns those
 HttpOnly cookies and derives the current user through authentication-service;

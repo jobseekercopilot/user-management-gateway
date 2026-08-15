@@ -61,13 +61,30 @@ public class UserManagementController {
         return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
     }
 
+    @GetMapping(value = "/registration-requirements", produces = "application/json")
+    @Operation(
+            operationId = "getRegistrationLegalRequirements",
+            summary = "Get the current registration legal requirements",
+            description = "Returns the server-authoritative legal version, minimum age and reviewed HTTPS document URLs required before registration.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Current registration requirements returned"),
+            @ApiResponse(responseCode = "503", description = "Authentication service unavailable", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unsafe downstream contract rejected", content = @Content(schema = @Schema(implementation = GatewayResponse.class)))
+    })
+    @Tag(name = "Authentication")
+    public ResponseEntity<RegistrationLegalRequirements> registrationRequirements() {
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(userManagementService.getRegistrationLegalRequirements());
+    }
+
     @PostMapping(value = "/register", consumes = "application/json", produces = "application/json")
     @Operation(summary = "Register a new user", description = "Registers a new user account. Coordinates with authentication-service to create the user.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Account and initial profile created"),
             @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
             @ApiResponse(responseCode = "403", description = "CSRF validation failed", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Account already exists", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Account already exists or the displayed legal version is no longer current", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
             @ApiResponse(responseCode = "413", description = "Request body too large", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
             @ApiResponse(responseCode = "415", description = "Unsupported media type", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),
             @ApiResponse(responseCode = "429", description = "Authentication rate limited", content = @Content(schema = @Schema(implementation = GatewayResponse.class))),

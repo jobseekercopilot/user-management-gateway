@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "repository": "jobseekercopilot/authentication-service",
+  "contractPath": "target/openapi.json",
+  "contractVersion": "2.0.0",
+  "sourceRevision": "2806272dfabbd23a369ca13cd258b689ff0554f8",
+  "sourceContractSha256": "a36b56124ce3893dc91a3fc481d4261dc5d15ef9046a0c2e8bce018bc3d0e2e2",
+  "consumerContractSha256": "b514e1b6256c8460d40514aaf19a94d4e222275234f691b17cc18f6b1587b540"
+}

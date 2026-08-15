@@ -1,10 +1,11 @@
 openapi: 3.0.1
 info:
   title: Jobseeker Copilot - Authentication Service API
-  version: 1.1.0
+  version: 2.0.0
   description: Consumer contract used by user-management-gateway.
 x-source-repository: jobseekercopilot/authentication-service
-x-source-revision: 194f74887b8637485e1afc24b3187cf86c4bd23f
+x-source-revision: 2806272dfabbd23a369ca13cd258b689ff0554f8
+x-source-contract-sha256: a36b56124ce3893dc91a3fc481d4261dc5d15ef9046a0c2e8bce018bc3d0e2e2
 paths:
   /api/auth/register:
     post:
@@ -42,6 +43,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
+  /api/auth/registration-requirements:
+    get:
+      tags: [Authentication]
+      operationId: getRegistrationLegalRequirements
+      responses:
+        '200':
+          description: Current reviewed registration legal requirements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationLegalRequirements'
   /api/auth/me:
     get:
       tags: [Authentication]
@@ -173,6 +185,12 @@ components:
   schemas:
     RegisterRequest:
       type: object
+      additionalProperties: false
+      required:
+        - termsAccepted
+        - privacyNoticeAcknowledged
+        - ageEligibilityConfirmed
+        - legalVersion
       properties:
         name:
           type: string
@@ -180,6 +198,17 @@ components:
           type: string
         password:
           type: string
+        termsAccepted:
+          type: boolean
+        privacyNoticeAcknowledged:
+          type: boolean
+        ageEligibilityConfirmed:
+          type: boolean
+        legalVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
     LoginRequest:
       type: object
       properties:
@@ -226,9 +255,51 @@ components:
           type: string
         email:
           type: string
+    RegistrationLegalRequirements:
+      type: object
+      required: [legalVersion, minimumAge, termsUrl, privacyNoticeUrl]
+      additionalProperties: false
+      properties:
+        legalVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
+        minimumAge:
+          type: integer
+          format: int32
+          minimum: 18
+          maximum: 18
+        termsUrl:
+          type: string
+          format: uri
+          maxLength: 512
+        privacyNoticeUrl:
+          type: string
+          format: uri
+          maxLength: 512
+    RegistrationLegalAcceptanceResponse:
+      type: object
+      required:
+        - legalVersion
+        - termsAccepted
+        - privacyNoticeAcknowledged
+        - ageEligibilityConfirmed
+        - acceptedAt
+      properties:
+        legalVersion:
+          type: string
+        termsAccepted:
+          type: boolean
+        privacyNoticeAcknowledged:
+          type: boolean
+        ageEligibilityConfirmed:
+          type: boolean
+        acceptedAt:
+          type: string
+          format: date-time
     PersonalDataExport:
       type: object
-      required: [schemaVersion, generatedAt, account, profile, applications, documents]
+      required: [schemaVersion, generatedAt, account, registrationLegalAcceptance, profile, applications, documents]
       properties:
         schemaVersion:
           type: string
@@ -237,6 +308,8 @@ components:
           format: date-time
         account:
           $ref: '#/components/schemas/UserAccountResponse'
+        registrationLegalAcceptance:
+          $ref: '#/components/schemas/RegistrationLegalAcceptanceResponse'
         profile:
           type: object
           additionalProperties: true

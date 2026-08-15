@@ -3,6 +3,7 @@ package com.jobseekercopilot.usermanagementgateway.service;
 import java.util.List;
 import java.util.UUID;
 import java.time.LocalDate;
+import java.net.URI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobseekercopilot.generated.authenticationservice.api.AuthenticationApi;
@@ -51,10 +52,7 @@ class UserManagementServiceTest {
 
     @Test
     void register_WithCredentialsOnly_CreatesBlankProfileAndReturnsSuccess() {
-        RegisterRequest request = new RegisterRequest();
-        request.setName("John Doe");
-        request.setEmail("john@test.com");
-        request.setPassword("A valid local passphrase 2026!");
+        RegisterRequest request = acceptedRegistration();
 
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
                 .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
@@ -77,6 +75,14 @@ class UserManagementServiceTest {
         assertEquals(201, response.getStatusCode());
         assertNotNull(response.getUser());
         assertEquals(42L, response.getUser().getProfile().getId());
+        ArgumentCaptor<com.jobseekercopilot.generated.authenticationservice.model.RegisterRequest>
+                downstreamRegistration = ArgumentCaptor.forClass(
+                        com.jobseekercopilot.generated.authenticationservice.model.RegisterRequest.class);
+        verify(authenticationApi).register(downstreamRegistration.capture());
+        assertTrue(downstreamRegistration.getValue().getTermsAccepted());
+        assertTrue(downstreamRegistration.getValue().getPrivacyNoticeAcknowledged());
+        assertTrue(downstreamRegistration.getValue().getAgeEligibilityConfirmed());
+        assertEquals("2026-08-15", downstreamRegistration.getValue().getLegalVersion());
         verify(userProfilesApi).createOrUpdateMyProfile(
                 argThat(candidate -> candidate.getSkills().isEmpty()
                         && candidate.getQualifications().isEmpty()
@@ -88,14 +94,80 @@ class UserManagementServiceTest {
 
     @Test
     void register_ShouldReturnBadRequest_WhenNameTooShort() {
-        RegisterRequest request = new RegisterRequest();
-        request.setName("A");
+        RegisterRequest request = acceptedRegistration();
+        request.setName("");
 
         GatewayResponse response = userManagementService.register(request);
 
         assertFalse(response.isSuccess());
         assertEquals(400, response.getStatusCode());
         verify(authenticationApi, never()).register(any());
+    }
+
+    @Test
+    void register_RejectsMissingLegalAcceptanceBeforeCallingDownstream() {
+        RegisterRequest request = new RegisterRequest();
+        request.setName("John Doe");
+        request.setEmail("john@test.com");
+        request.setPassword("A valid local passphrase 2026!");
+        request.setLegalVersion("2026-08-15");
+
+        GatewayResponse response = userManagementService.register(request);
+
+        assertEquals(400, response.getStatusCode());
+        assertEquals("REQUEST_VALIDATION_FAILED", response.getError().code());
+        verifyNoInteractions(authenticationApi);
+    }
+
+    @Test
+    void register_MapsStaleLegalVersionWithoutMisreportingAnExistingAccount() {
+        RegisterRequest request = acceptedRegistration();
+        doThrow(HttpClientErrorException.create(
+                HttpStatus.CONFLICT,
+                "private detail",
+                HttpHeaders.EMPTY,
+                "{\"code\":\"LEGAL_VERSION_OUTDATED\"}".getBytes(
+                        java.nio.charset.StandardCharsets.UTF_8),
+                java.nio.charset.StandardCharsets.UTF_8))
+                .when(authenticationApi).register(any());
+
+        GatewayResponse response = userManagementService.register(request);
+
+        assertEquals(409, response.getStatusCode());
+        assertEquals("LEGAL_VERSION_OUTDATED", response.getError().code());
+        assertFalse(response.getMessage().contains("private"));
+    }
+
+    @Test
+    void registrationRequirements_MapsOnlyReviewedExactValues() {
+        when(authenticationApi.getRegistrationLegalRequirements()).thenReturn(
+                new com.jobseekercopilot.generated.authenticationservice.model.RegistrationLegalRequirements()
+                        .legalVersion("2026-08-15")
+                        .minimumAge(18)
+                        .termsUrl(URI.create("https://jobseekercopilot.com/terms"))
+                        .privacyNoticeUrl(URI.create("https://jobseekercopilot.com/privacy")));
+
+        RegistrationLegalRequirements result =
+                userManagementService.getRegistrationLegalRequirements();
+
+        assertEquals("2026-08-15", result.legalVersion());
+        assertEquals(18, result.minimumAge());
+        assertEquals("https://jobseekercopilot.com/terms", result.termsUrl());
+        assertEquals("https://jobseekercopilot.com/privacy", result.privacyNoticeUrl());
+    }
+
+    @Test
+    void registrationRequirements_FailsClosedForUnsafeUrl() {
+        when(authenticationApi.getRegistrationLegalRequirements()).thenReturn(
+                new com.jobseekercopilot.generated.authenticationservice.model.RegistrationLegalRequirements()
+                        .legalVersion("2026-08-15")
+                        .minimumAge(18)
+                        .termsUrl(URI.create("http://example.test/terms"))
+                        .privacyNoticeUrl(URI.create("https://jobseekercopilot.com/privacy")));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                userManagementService::getRegistrationLegalRequirements);
     }
 
     @Test
@@ -421,10 +493,7 @@ class UserManagementServiceTest {
 
     @Test
     void register_ReturnsServiceUnavailable_WhenProfileFailsAfterAuthentication() {
-        RegisterRequest request = new RegisterRequest();
-        request.setName("John Doe");
-        request.setEmail("john@test.com");
-        request.setPassword("A valid local passphrase 2026!");
+        RegisterRequest request = acceptedRegistration();
         var loginResponse = new com.jobseekercopilot.generated.authenticationservice.model.LoginResponse()
                 .token("jwt-token").refreshToken("refresh-token").expiresIn(900L);
         var accountResponse = new com.jobseekercopilot.generated.authenticationservice.model.UserAccountResponse()
@@ -528,6 +597,18 @@ class UserManagementServiceTest {
         return new ObjectMapper().findAndRegisterModules().convertValue(
                 profile,
                 com.jobseekercopilot.generated.userprofileservice.model.UserProfile.class);
+    }
+
+    private RegisterRequest acceptedRegistration() {
+        RegisterRequest request = new RegisterRequest();
+        request.setName("John Doe");
+        request.setEmail("john@test.com");
+        request.setPassword("A valid local passphrase 2026!");
+        request.setTermsAccepted(true);
+        request.setPrivacyNoticeAcknowledged(true);
+        request.setAgeEligibilityConfirmed(true);
+        request.setLegalVersion("2026-08-15");
+        return request;
     }
 
     private HttpHeaders unsafeDownstreamHeaders(String etag) {

@@ -37,7 +37,7 @@ class OpenApiExportTest {
         JsonNode root = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
-        assertEquals("3.1.0", root.at("/info/version").asText());
+        assertEquals("4.0.0", root.at("/info/version").asText());
         JsonNode session = root.at("/components/securitySchemes/browserSession");
         assertEquals("apiKey", session.path("type").asText());
         assertEquals("cookie", session.path("in").asText());
@@ -101,6 +101,9 @@ class OpenApiExportTest {
                 "/components/schemas/EvidenceEntry/properties/supersededByEntryId/type/0").asText());
         assertPublicOperation(root.at("/paths/~1api~1auth~1register/post"),
                 "201", "400", "403", "409", "413", "415", "429", "500", "503");
+        assertPublicOperation(root.at(
+                        "/paths/~1api~1auth~1registration-requirements/get"),
+                "200", "500", "503");
         assertPublicOperation(root.at("/paths/~1api~1auth~1login/post"),
                 "200", "400", "401", "403", "413", "415", "429", "500", "503");
         assertTrue(root.at("/paths/~1api~1auth~1csrf/get").isObject());
@@ -116,6 +119,22 @@ class OpenApiExportTest {
         assertStringConstraint(root, "RegisterRequest", "name", 1, 100, null, "Unicode code points");
         assertStringConstraint(root, "RegisterRequest", "email", 1, 254, "email", "Unicode code points");
         assertStringConstraint(root, "RegisterRequest", "password", 15, 128, "password", "exactly");
+        assertStringConstraint(root, "RegisterRequest", "legalVersion", 1, 64, null, "Exact legal version");
+        for (String field : List.of(
+                "termsAccepted", "privacyNoticeAcknowledged",
+                "ageEligibilityConfirmed", "legalVersion")) {
+            assertTrue(root.at("/components/schemas/RegisterRequest/required")
+                    .toString().contains("\"" + field + "\""), field);
+        }
+        assertEquals(18, root.at(
+                "/components/schemas/RegistrationLegalRequirements/properties/minimumAge/minimum")
+                .asInt());
+        assertEquals(18, root.at(
+                "/components/schemas/RegistrationLegalRequirements/properties/minimumAge/maximum")
+                .asInt());
+        assertEquals("uri", root.at(
+                "/components/schemas/RegistrationLegalRequirements/properties/termsUrl/format")
+                .asText());
         assertStringConstraint(root, "LoginRequest", "email", 1, 254, "email", "Unicode code points");
         assertStringConstraint(root, "LoginRequest", "password", 1, 128, "password", "exactly");
 
