@@ -156,7 +156,8 @@ class UserManagementControllerTest {
     @Test
     void accountExportIsNoStoreAndUsesTheAuthenticatedAccessToken() {
         var export = new com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport()
-                .schemaVersion("job-seeker-copilot-personal-data.v1");
+                .schemaVersion("job-seeker-copilot-personal-data.v3")
+                .payments(java.util.Map.of("schemaVersion", "payment-export-v1"));
         when(userManagementService.exportPersonalData("valid-token"))
                 .thenReturn(export);
 

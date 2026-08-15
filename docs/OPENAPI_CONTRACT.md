@@ -2,7 +2,7 @@
 
 ## Public contract version
 
-The current browser-facing contract is `4.0.0`. Version 4 preserves the
+The current browser-facing contract is `4.1.0`. Version 4 preserves the
 gateway-owned HttpOnly access/refresh cookies, CSRF-protected writes and
 subject-bound profile operations from earlier versions. It requires explicit
 terms, privacy-notice and minimum-age acknowledgements against the exact
@@ -10,6 +10,9 @@ server-published legal version during registration. Version 4 also retains the
 version 3 Evidence Library limits and owner-scoped professional-contact route.
 Earlier clients must regenerate and present the reviewed acknowledgements;
 they must not silently invent or default legal consent.
+Version 4.1 additively carries the Authentication-owned, owner-matched Payment
+record in personal-data exports. It does not expose Payment lifecycle service
+credentials or provider mutation routes to the browser.
 
 Consumers must pin both the semantic contract version and the exact source
 revision that produced the reviewed OpenAPI document. A breaking public schema,

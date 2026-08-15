@@ -133,7 +133,10 @@ class GatewaySecurityIntegrationTest {
                 .thenReturn(account());
         when(accountLifecycleApi.exportPersonalData("Bearer lifecycle-access"))
                 .thenReturn(new com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport()
-                        .schemaVersion("job-seeker-copilot-personal-data.v1"));
+                        .schemaVersion("job-seeker-copilot-personal-data.v3")
+                        .payments(java.util.Map.of(
+                                "schemaVersion", "payment-export-v1",
+                                "providerReconciliationEvidenceRetained", true)));
         when(accountLifecycleApi.deleteAccount(
                         "Bearer lifecycle-access", "delete-request-0001"))
                 .thenReturn(new com.jobseekercopilot.generated.authenticationservice.model.AccountDeletionResponse()
@@ -145,6 +148,10 @@ class GatewaySecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL,
                         containsString("no-store")))
+                .andExpect(jsonPath("$.schemaVersion")
+                        .value("job-seeker-copilot-personal-data.v3"))
+                .andExpect(jsonPath("$.payments.schemaVersion")
+                        .value("payment-export-v1"))
                 .andExpect(content().string(not(containsString("lifecycle-access"))));
 
         var deleted = mockMvc.perform(delete("/api/auth/account")

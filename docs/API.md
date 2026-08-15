@@ -1,6 +1,6 @@
 # User Management Gateway API
 
-This reference describes public contract `4.0.0`. It preserves the
+This reference describes public contract `4.1.0`. It preserves the
 cookie-session and ownership boundary, Evidence Library write limits and
 owner-scoped professional-contact update. Version 4 requires explicit,
 versioned registration acknowledgements and exposes the reviewed legal

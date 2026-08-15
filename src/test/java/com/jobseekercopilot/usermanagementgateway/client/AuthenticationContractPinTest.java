@@ -31,14 +31,14 @@ class AuthenticationContractPinTest {
         assertEquals("jobseekercopilot/authentication-service",
                 pin.path("repository").asText());
         assertEquals("target/openapi.json", pin.path("contractPath").asText());
-        assertEquals("2.0.0", pin.path("contractVersion").asText());
-        assertEquals("2806272dfabbd23a369ca13cd258b689ff0554f8",
+        assertEquals("2.1.0", pin.path("contractVersion").asText());
+        assertEquals("66dbbc1dffb1355c005d5c4336cabae2d2187808",
                 pin.path("sourceRevision").asText());
-        assertEquals("a36b56124ce3893dc91a3fc481d4261dc5d15ef9046a0c2e8bce018bc3d0e2e2",
+        assertEquals("8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884",
                 pin.path("sourceContractSha256").asText());
         assertEquals(pin.path("consumerContractSha256").asText(), sha256(contractBytes));
 
-        assertTrue(contract.contains("version: 2.0.0"));
+        assertTrue(contract.contains("version: 2.1.0"));
         assertTrue(contract.contains("x-source-repository: jobseekercopilot/authentication-service"));
         assertTrue(contract.contains("x-source-revision: " + pin.path("sourceRevision").asText()));
         assertTrue(contract.contains("x-source-contract-sha256: "
@@ -49,6 +49,8 @@ class AuthenticationContractPinTest {
         assertTrue(contract.contains("- privacyNoticeAcknowledged"));
         assertTrue(contract.contains("- ageEligibilityConfirmed"));
         assertTrue(contract.contains("- legalVersion"));
+        assertTrue(contract.contains("documents, payments]"));
+        assertTrue(contract.contains("        payments:"));
     }
 
     private String sha256(byte[] content) throws Exception {

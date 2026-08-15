@@ -37,7 +37,9 @@ class OpenApiExportTest {
         JsonNode root = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
-        assertEquals("4.0.0", root.at("/info/version").asText());
+        assertEquals("4.1.0", root.at("/info/version").asText());
+        assertTrue(root.at(
+                "/components/schemas/PersonalDataExport/properties/payments").isObject());
         JsonNode session = root.at("/components/securitySchemes/browserSession");
         assertEquals("apiKey", session.path("type").asText());
         assertEquals("cookie", session.path("in").asText());

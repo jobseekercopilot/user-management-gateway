@@ -1,11 +1,11 @@
 openapi: 3.0.1
 info:
   title: Jobseeker Copilot - Authentication Service API
-  version: 2.0.0
+  version: 2.1.0
   description: Consumer contract used by user-management-gateway.
 x-source-repository: jobseekercopilot/authentication-service
-x-source-revision: 2806272dfabbd23a369ca13cd258b689ff0554f8
-x-source-contract-sha256: a36b56124ce3893dc91a3fc481d4261dc5d15ef9046a0c2e8bce018bc3d0e2e2
+x-source-revision: 66dbbc1dffb1355c005d5c4336cabae2d2187808
+x-source-contract-sha256: 8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884
 paths:
   /api/auth/register:
     post:
@@ -299,7 +299,7 @@ components:
           format: date-time
     PersonalDataExport:
       type: object
-      required: [schemaVersion, generatedAt, account, registrationLegalAcceptance, profile, applications, documents]
+      required: [schemaVersion, generatedAt, account, registrationLegalAcceptance, profile, applications, documents, payments]
       properties:
         schemaVersion:
           type: string
@@ -317,6 +317,9 @@ components:
           type: object
           additionalProperties: true
         documents:
+          type: object
+          additionalProperties: true
+        payments:
           type: object
           additionalProperties: true
     AccountDeletionResponse:
