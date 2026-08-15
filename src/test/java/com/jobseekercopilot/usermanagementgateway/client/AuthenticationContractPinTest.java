@@ -32,7 +32,7 @@ class AuthenticationContractPinTest {
                 pin.path("repository").asText());
         assertEquals("target/openapi.json", pin.path("contractPath").asText());
         assertEquals("2.1.0", pin.path("contractVersion").asText());
-        assertEquals("66dbbc1dffb1355c005d5c4336cabae2d2187808",
+        assertEquals("d447addae21714f51267c0ab073377c24e3cfe81",
                 pin.path("sourceRevision").asText());
         assertEquals("8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884",
                 pin.path("sourceContractSha256").asText());

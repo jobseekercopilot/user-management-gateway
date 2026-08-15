@@ -9,7 +9,7 @@ The authentication consumer contract carries `x-source-repository`,
 records both the full producer export digest and the reviewed, gateway-scoped
 consumer-contract digest. Its current reviewed source is Authentication
 contract `2.1.0`, revision
-`66dbbc1dffb1355c005d5c4336cabae2d2187808`, digest
+`d447addae21714f51267c0ab073377c24e3cfe81`, digest
 `8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884`.
 It includes the owner-matched, versioned Payment record in the account export;
 the gateway forwards that generated field without parsing provider evidence.

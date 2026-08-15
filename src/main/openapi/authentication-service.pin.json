@@ -3,7 +3,7 @@
   "repository": "jobseekercopilot/authentication-service",
   "contractPath": "target/openapi.json",
   "contractVersion": "2.1.0",
-  "sourceRevision": "66dbbc1dffb1355c005d5c4336cabae2d2187808",
+  "sourceRevision": "d447addae21714f51267c0ab073377c24e3cfe81",
   "sourceContractSha256": "8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884",
-  "consumerContractSha256": "1e8b192a3bdbbc18940fdf84ba26a82ebd5ba947d691de1fe0bd9896a5a11a04"
+  "consumerContractSha256": "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0"
 }
