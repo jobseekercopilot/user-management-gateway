@@ -71,6 +71,28 @@ class GatewaySecurityIntegrationTest {
     }
 
     @Test
+    void registrationRequirementsArePublicButSourcedFromAuthenticatedServiceClient()
+            throws Exception {
+        when(authenticationApi.getRegistrationLegalRequirements()).thenReturn(
+                new com.jobseekercopilot.generated.authenticationservice.model.RegistrationLegalRequirements()
+                        .legalVersion("2026-08-15")
+                        .minimumAge(18)
+                        .termsUrl(java.net.URI.create("https://jobseekercopilot.com/terms"))
+                        .privacyNoticeUrl(java.net.URI.create(
+                                "https://jobseekercopilot.com/privacy")));
+
+        mockMvc.perform(get("/api/auth/registration-requirements"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(jsonPath("$.legalVersion").value("2026-08-15"))
+                .andExpect(jsonPath("$.minimumAge").value(18))
+                .andExpect(jsonPath("$.termsUrl").value(
+                        "https://jobseekercopilot.com/terms"))
+                .andExpect(jsonPath("$.privacyNoticeUrl").value(
+                        "https://jobseekercopilot.com/privacy"));
+    }
+
+    @Test
     void everyStateChangingBrowserRouteRequiresCsrf() throws Exception {
         for (String path : List.of("/api/auth/register", "/api/auth/login",
                 "/api/auth/refresh", "/api/auth/logout", "/api/auth/profile",
@@ -111,7 +133,10 @@ class GatewaySecurityIntegrationTest {
                 .thenReturn(account());
         when(accountLifecycleApi.exportPersonalData("Bearer lifecycle-access"))
                 .thenReturn(new com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport()
-                        .schemaVersion("job-seeker-copilot-personal-data.v1"));
+                        .schemaVersion("job-seeker-copilot-personal-data.v3")
+                        .payments(java.util.Map.of(
+                                "schemaVersion", "payment-export-v1",
+                                "providerReconciliationEvidenceRetained", true)));
         when(accountLifecycleApi.deleteAccount(
                         "Bearer lifecycle-access", "delete-request-0001"))
                 .thenReturn(new com.jobseekercopilot.generated.authenticationservice.model.AccountDeletionResponse()
@@ -123,6 +148,10 @@ class GatewaySecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL,
                         containsString("no-store")))
+                .andExpect(jsonPath("$.schemaVersion")
+                        .value("job-seeker-copilot-personal-data.v3"))
+                .andExpect(jsonPath("$.payments.schemaVersion")
+                        .value("payment-export-v1"))
                 .andExpect(content().string(not(containsString("lifecycle-access"))));
 
         var deleted = mockMvc.perform(delete("/api/auth/account")

@@ -1,9 +1,10 @@
 # User Management Gateway API
 
-This reference describes public contract `3.1.0`. It preserves the
-cookie-session and ownership boundary introduced in version 2, the version 3
-Evidence Library write limits, and adds an owner-scoped professional-contact
-update without exposing personal contact to caller-selected identities. It otherwise replaces the incompatible
+This reference describes public contract `4.1.0`. It preserves the
+cookie-session and ownership boundary, Evidence Library write limits and
+owner-scoped professional-contact update. Version 4 requires explicit,
+versioned registration acknowledgements and exposes the reviewed legal
+requirements without accepting caller-selected legal URLs or versions. It otherwise replaces the incompatible
 1.x browser bearer-token contract; see the
 [OpenAPI contract policy](OPENAPI_CONTRACT.md) for migration and pinning rules.
 
@@ -64,15 +65,24 @@ session returns stable `401`.
 
 ## Register
 
+First call `GET /api/auth/registration-requirements`. Its non-cacheable response
+contains the current `legalVersion`, exact HTTPS `termsUrl` and
+`privacyNoticeUrl`, and `minimumAge` (18). Registration must fail closed when
+these reviewed requirements are unavailable or malformed.
+
 `POST /api/auth/register` creates the authentication account, logs in, and
-creates a blank profile synchronously. Only the approved account fields are
-needed:
+creates a blank profile synchronously. It requires the approved account fields
+and explicit acknowledgements against that exact version:
 
 ```json
 {
   "name": "Example User",
   "email": "user@example.invalid",
-  "password": "<password>"
+  "password": "<password>",
+  "termsAccepted": true,
+  "privacyNoticeAcknowledged": true,
+  "ageEligibilityConfirmed": true,
+  "legalVersion": "2026-08-15"
 }
 ```
 
@@ -84,6 +94,9 @@ Unicode code points. Emails are trimmed, syntactically valid and at most 254
 code points. New passwords contain 15–128 Unicode code points and are forwarded
 exactly as supplied; whitespace is never trimmed or otherwise changed.
 Success also establishes the cookie session without returning either token.
+False or missing acknowledgements are rejected. A stale legal version returns
+`409`; the browser must reload the requirements and ask the person to review
+them again. The gateway never supplies consent defaults on the person's behalf.
 Registration is not yet atomic: a later profile failure can leave the account
 created, as tracked in UMG-02.
 

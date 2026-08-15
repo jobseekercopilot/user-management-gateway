@@ -3,6 +3,7 @@ package com.jobseekercopilot.usermanagementgateway.controller;
 import com.jobseekercopilot.usermanagementgateway.model.GatewayResponse;
 import com.jobseekercopilot.usermanagementgateway.model.LoginRequest;
 import com.jobseekercopilot.usermanagementgateway.model.RegisterRequest;
+import com.jobseekercopilot.usermanagementgateway.model.RegistrationLegalRequirements;
 import com.jobseekercopilot.usermanagementgateway.model.ProfessionalContact;
 import com.jobseekercopilot.usermanagementgateway.model.User;
 import com.jobseekercopilot.usermanagementgateway.model.UserProfile;
@@ -59,6 +60,24 @@ class UserManagementControllerTest {
         assertTrue(response.getBody().isSuccess());
         verify(userManagementService, times(1)).registerSession(request);
         verify(telemetry).record(eq(UserOperation.REGISTER), same(serviceResponse), anyLong());
+    }
+
+    @Test
+    void registrationRequirements_ReturnsAuthoritativeNoStoreResponse() {
+        RegistrationLegalRequirements requirements = new RegistrationLegalRequirements(
+                "2026-08-15",
+                18,
+                "https://jobseekercopilot.com/terms",
+                "https://jobseekercopilot.com/privacy");
+        when(userManagementService.getRegistrationLegalRequirements())
+                .thenReturn(requirements);
+
+        ResponseEntity<RegistrationLegalRequirements> response =
+                userManagementController.registrationRequirements();
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertSame(requirements, response.getBody());
+        assertTrue(response.getHeaders().getCacheControl().contains("no-store"));
     }
 
     @Test
@@ -137,7 +156,8 @@ class UserManagementControllerTest {
     @Test
     void accountExportIsNoStoreAndUsesTheAuthenticatedAccessToken() {
         var export = new com.jobseekercopilot.generated.authenticationservice.model.PersonalDataExport()
-                .schemaVersion("job-seeker-copilot-personal-data.v1");
+                .schemaVersion("job-seeker-copilot-personal-data.v3")
+                .payments(java.util.Map.of("schemaVersion", "payment-export-v1"));
         when(userManagementService.exportPersonalData("valid-token"))
                 .thenReturn(export);
 

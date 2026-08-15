@@ -23,7 +23,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Jobseeker Copilot - User Management Gateway API")
                         .description("Gateway API for user registration, authentication, progressive profile management and the Evidence Library. Orchestrates calls to authentication-service and user-profile-service.")
-                        .version("3.1.0"))
+                        .version("4.1.0"))
                 .components(new Components().addSecuritySchemes("browserSession",
                         new SecurityScheme()
                                 .type(SecurityScheme.Type.APIKEY)

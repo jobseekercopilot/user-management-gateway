@@ -45,9 +45,15 @@ correlation propagation, dashboard panels and initial alert thresholds.
 
 ## API
 
+Registration begins with `GET` `/api/auth/registration-requirements`. It
+returns the server-authoritative legal version, minimum age and reviewed HTTPS
+Terms and Privacy links with `Cache-Control: no-store`; registration fails
+closed when that contract is unavailable or unsafe.
+
 | Method | Path | Authentication | Purpose |
 |---|---|---|---|
 | `GET` | `/api/auth/csrf` | None | Bootstrap the readable CSRF cookie and return its header/token pair |
+| `GET` | `/api/auth/registration-requirements` | None | Read the non-cacheable legal version, minimum age and reviewed policy links required for registration |
 | `POST` | `/api/auth/register` | CSRF | Create an account/profile and establish an HttpOnly cookie session |
 | `POST` | `/api/auth/login` | CSRF | Authenticate and establish an HttpOnly cookie session |
 | `POST` | `/api/auth/password-reset/request` | CSRF | Return a generic response and request account-email delivery |
