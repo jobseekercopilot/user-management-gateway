@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+target
+data
+.env
+.env.*
+*.log
+*.md
+!README.md
+!docs/API.md
+!docs/OPERATIONS.md
+LICENSE

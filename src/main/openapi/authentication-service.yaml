@@ -1,0 +1,341 @@
+openapi: 3.0.1
+info:
+  title: Jobseeker Copilot - Authentication Service API
+  version: 2.1.0
+  description: Consumer contract used by user-management-gateway.
+x-source-repository: jobseekercopilot/authentication-service
+x-source-revision: d447addae21714f51267c0ab073377c24e3cfe81
+x-source-contract-sha256: 8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884
+paths:
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /api/auth/registration-requirements:
+    get:
+      tags: [Authentication]
+      operationId: getRegistrationLegalRequirements
+      responses:
+        '200':
+          description: Current reviewed registration legal requirements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationLegalRequirements'
+  /api/auth/me:
+    get:
+      tags: [Authentication]
+      operationId: getCurrentUser
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAccountResponse'
+  /api/auth/refresh:
+    post:
+      tags: [Authentication]
+      operationId: refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Session rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Session revoked
+  /api/auth/password-reset/request:
+    post:
+      tags: [Authentication]
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '202':
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /api/auth/password-reset/complete:
+    post:
+      tags: [Authentication]
+      operationId: completePasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetCompletionRequest'
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /api/auth/account/export:
+    get:
+      tags: [Account lifecycle]
+      operationId: exportPersonalData
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Owner-scoped synchronous personal-data export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalDataExport'
+  /api/auth/account:
+    delete:
+      tags: [Account lifecycle]
+      operationId: deleteAccount
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+            pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'
+      responses:
+        '202':
+          description: Deletion operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionResponse'
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - termsAccepted
+        - privacyNoticeAcknowledged
+        - ageEligibilityConfirmed
+        - legalVersion
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        termsAccepted:
+          type: boolean
+        privacyNoticeAcknowledged:
+          type: boolean
+        ageEligibilityConfirmed:
+          type: boolean
+        legalVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+    PasswordResetRequest:
+      type: object
+      properties:
+        email:
+          type: string
+    PasswordResetCompletionRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+    UserAccountResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+    RegistrationLegalRequirements:
+      type: object
+      required: [legalVersion, minimumAge, termsUrl, privacyNoticeUrl]
+      additionalProperties: false
+      properties:
+        legalVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
+        minimumAge:
+          type: integer
+          format: int32
+          minimum: 18
+          maximum: 18
+        termsUrl:
+          type: string
+          format: uri
+          maxLength: 512
+        privacyNoticeUrl:
+          type: string
+          format: uri
+          maxLength: 512
+    RegistrationLegalAcceptanceResponse:
+      type: object
+      required:
+        - legalVersion
+        - termsAccepted
+        - privacyNoticeAcknowledged
+        - ageEligibilityConfirmed
+        - acceptedAt
+      properties:
+        legalVersion:
+          type: string
+        termsAccepted:
+          type: boolean
+        privacyNoticeAcknowledged:
+          type: boolean
+        ageEligibilityConfirmed:
+          type: boolean
+        acceptedAt:
+          type: string
+          format: date-time
+    PersonalDataExport:
+      type: object
+      required: [schemaVersion, generatedAt, account, registrationLegalAcceptance, profile, applications, documents, payments]
+      properties:
+        schemaVersion:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        account:
+          $ref: '#/components/schemas/UserAccountResponse'
+        registrationLegalAcceptance:
+          $ref: '#/components/schemas/RegistrationLegalAcceptanceResponse'
+        profile:
+          type: object
+          additionalProperties: true
+        applications:
+          type: object
+          additionalProperties: true
+        documents:
+          type: object
+          additionalProperties: true
+        payments:
+          type: object
+          additionalProperties: true
+    AccountDeletionResponse:
+      type: object
+      required: [operationId, status, acceptedAt]
+      properties:
+        operationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, RETRY_REQUIRED, COMPLETED]
+        acceptedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
