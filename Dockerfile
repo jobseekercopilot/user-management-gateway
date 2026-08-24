@@ -9,15 +9,11 @@ COPY src ./src
 
 RUN mvn -B clean verify
 
-FROM eclipse-temurin:17-jre-alpine@sha256:02320dd4ce20e243dfb915c686089cf9315c763084fafbb12d5c9993aee18b57
+FROM eclipse-temurin:17-jre-alpine@sha256:90b7615cb81e3a75f69124fb480e48981c7d56dbc9f32c614d789d3a1c3e32fe
 
 WORKDIR /app
 
-RUN apk add --no-cache --upgrade \
-        libexpat=2.8.3-r0 \
-        p11-kit=0.26.2-r0 \
-        p11-kit-trust=0.26.2-r0 \
-    && addgroup -S -g 10001 app \
+RUN addgroup -S -g 10001 app \
     && adduser -S -D -H -u 10001 -G app app
 
 COPY --from=build --chown=10001:10001 /app/target/user-management-gateway-1.0.0.jar app.jar
