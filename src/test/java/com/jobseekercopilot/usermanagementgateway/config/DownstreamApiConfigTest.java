@@ -91,8 +91,12 @@ class DownstreamApiConfigTest {
             ClientHttpRequestInterceptor correlation = (request, body, execution) ->
                     execution.execute(request, body);
             var resilience = new DownstreamResilienceInterceptor("patch-service", 1, 3, 30_000, 1);
+            // Generous connect/read timeouts: this test verifies PATCH method and
+            // body pass through to the downstream, not timeout behaviour. Tight
+            // 500ms values flake against the loopback server under heavy parallel
+            // CI load; timeout enforcement is covered by the slow-service test.
             var restTemplate = new DownstreamApiConfig().restTemplate(
-                    correlation, resilience, 500, 500);
+                    correlation, resilience, 5_000, 5_000);
 
             restTemplate.exchange(
                     "http://127.0.0.1:" + downstream.getAddress().getPort() + "/profile",
